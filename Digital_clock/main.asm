@@ -36,6 +36,10 @@ jmp RESET ;Interruption PCINT0 - button reset
 .def display_hour  = r17 ; Exclusive use for modes 1 and 3 (show and adjust time for display)
 .def display_crono = r18 ; Exclusive use for mode 2 (show local cronometro)
 .def stack		   = r0  ; Exclusive use for stack SREG config
+.def seg_unit	   = r22 ; Used to represent the unidade dos segundos
+.def seg_dec	   = r23 ; Used to represent the dezenas dos segundos
+.def min_uni	   = r24 ; Used to represent the unidade dos minutos
+.def min_dec	   = r25 ; Used to represent the dezenas dos minutos
 
 ;.SET
 .set hour  = r19
@@ -67,6 +71,7 @@ jmp RESET ;Interruption PCINT0 - button reset
 
 ;Storages
 show_display: .db display1, display2, display3, display4
+hour: .
 
 /* ******************************************* */
 
@@ -140,37 +145,37 @@ FUNC_BUZZER:
     ret
 
 	MODO:
-	push stack
-	in stack, SREG
-	push stack
+		push stack
+		in stack, SREG
+		push stack
 
-	;TO DO: Implementar a lógica de troca de estado e as chamdas de rotinas necessárias para garante a execução ideal do próximo estadó
+		;TO DO: Implementar a lógica de troca de estado e as chamdas de rotinas necessárias para garante a execução ideal do próximo estadó
 
-	pop stack
-	out SREG, stack
-	pop stack
-	reti
+		pop stack
+		out SREG, stack
+		pop stack
+		reti
 
 	START:
-	push stack
-	in stack, SREG
-	push stack
+		push stack
+		in stack, SREG
+		push stack
 
-	;TO DO: Muita coisa
+		;TO DO: Muita coisa
 
-	pop stack
-	out SREG, stack
-	pop stack
-	reti
+		pop stack
+		out SREG, stack
+		pop stack
+		reti
 
 	RESET:
-	push stack
-	in stack, SREG
-	push stack
+		push stack
+		in stack, SREG
+		push stack
 
-	;TO DO: Muita coisa
+		;TO DO: Muita coisa
 
-	pop stack
-	out SREG, stack
-	pop stack
-	reti
+		pop stack
+		out SREG, stack
+		pop stack
+		reti
