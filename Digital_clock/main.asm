@@ -1,12 +1,13 @@
-;
-; Digital_clock.asm
-;
-; Created: 03/04/2025 19:45:17
-; Author : jmnas
-;
-
-
-; Replace with your application code
-start:
-    inc r16
-    rjmp start
+/*
+*	Digital Clock: This project aims to develop a digital clock 
+*    with 3 operating modes: Show the time, stopwatch and adjust the time.
+*
+*	Copyright (C) [2025] [Digital clock]
+*	
+*	Developed by:
+*	-	Arturo Jiménez Loaiza 
+*	-	Gabriel Vitorino de Andrade  
+*	-	João Matheus Nascimento Dias 
+*	-	Manoel Pedro de Aranda Terceiro
+*
+*/
