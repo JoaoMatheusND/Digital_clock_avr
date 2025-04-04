@@ -1,0 +1,28 @@
+<ASSEMBLER_INFO>
+ <VERSION>2.2.8</VERSION>
+ <DEVICE>"ATmega328P"</DEVICE>
+ <WORKING_DIR>c:\users\jmnas\Documents\Atmel Studio\7.0\Digital_clock\Digital_clock\Debug</WORKING_DIR>
+ <INCLUDE_PATH>
+  <DIR>C:/Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.7.374\avrasm\inc</DIR>
+  <DIR>C:\Program Files (x86)\Atmel\Studio\7.0\toolchain\avr8\avrassembler\Include</DIR>
+  <DIR></DIR>
+ </INCLUDE_PATH>
+ <SOURCE_FILE>c:\users\jmnas\Documents\Atmel Studio\7.0\Digital_clock\Digital_clock\main.asm</SOURCE_FILE>
+ <INCLUDED_FILES>
+  <FILE>C:/Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.7.374\avrasm\inc\m328Pdef.inc</FILE>
+ </INCLUDED_FILES>
+ <OBJECT_FILES>
+  <FILE>c:\users\jmnas\Documents\Atmel Studio\7.0\Digital_clock\Digital_clock\Debug\Digital_clock.obj</FILE>
+ </OBJECT_FILES>
+ <HEX_FILES>
+  <FILE>Digital_clock.hex</FILE>
+ </HEX_FILES>
+ <OUTPUT_FILES>
+  <FILE>Digital_clock.map</FILE>
+  <FILE>Digital_clock.lss</FILE>
+ </OUTPUT_FILES>
+ <LABELS>
+  <INIT><FILE>c:\users\jmnas\Documents\Atmel Studio\7.0\Digital_clock\Digital_clock\main.asm</FILE><LINE>69</LINE></INIT>
+  <show_display><FILE>c:\users\jmnas\Documents\Atmel Studio\7.0\Digital_clock\Digital_clock\main.asm</FILE><LINE>62</LINE></show_display>
+ </LABELS>
+</ASSEMBLER_INFO>

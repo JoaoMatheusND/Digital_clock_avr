@@ -25,15 +25,16 @@ jmp RESET ;Interruption PCINT0 - button reset
 
 ;Serial printer
 .org 0x28
-	jmp USAR_TX
+	;jmp USAR_TX
 
 /* ******************************************* */
 
 
 /* Set the varibles and registes defines to use at the code */ 
 ;DEFINES
-.def temp         = r16 ; Used only with temporary data
-.def display_hour = r17 ; Exclusive use for modes 1 and 3 (show and adjust time for display)
+.def temp          = r16 ; Used only with temporary data
+.def display_hour  = r17 ; Exclusive use for modes 1 and 3 (show and adjust time for display)
+.def display_crono = r18 ; Exclusive use for mode 2 (show local cronometro)
 
 ;.SET
 
@@ -93,6 +94,9 @@ INIT:
 
 		ldi temp, buttons
 		out DDRD, temp  ; Port D is to receiver the buttons and call the callbacks to system work very well
+
+	;Enable especific interrup
+
 						
 
 
