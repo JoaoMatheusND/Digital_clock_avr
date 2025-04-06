@@ -11,6 +11,9 @@
 *	-	Manoel Pedro de Aranda Terceiro
 */
 
+;inclus√£o do arquivo de configura√ß√£o do microcontrolador atmega328p
+.include "m328pdef.inc"
+
 /* The interrupt vector is listed below: */
 jmp INIT  ;Interruption RESET
 
@@ -40,11 +43,14 @@ jmp RESET ;Interruption PCINT0 - button reset
 .def seg_dec	   = r23 ; Used to represent the dezenas dos segundos
 .def min_uni	   = r24 ; Used to represent the unidade dos minutos
 .def min_dec	   = r25 ; Used to represent the dezenas dos minutos
+.def hour  		   = r19
+.def crono 		   = r20
+.def delay 		   = r21
+.def mode_status   = r26 ; Used to represent the mode of the clock
 
 ;.SET
-.set hour  = r19
-.set crono = r20
-.set delay = r21
+
+
 
 ;.EQU
 .equ full_input   = 0x00 ; If used all pins of a port will be set like input
@@ -59,14 +65,16 @@ jmp RESET ;Interruption PCINT0 - button reset
 .equ B2			  = 0b00000100 ; *
 .equ B3			  = 0b00001000 ; *
 .equ B4			  = 0b00010000 ; LSB od 4 bits that is send to ci4511
-.equ CI4511		  = B1 | B2 | B3 | B4	
 .equ buzzer		  = 0b00100000
+.equ CI4511		  = B1 | B2 | B3 | B4	
 .equ modo_button  = 0b00000100
 .equ start_button = 0b00001000
 .equ reset_button = 0b00010000
 .equ buttons	  = modo_button | start_button | reset_button
 
 .equ cloclkMHz = 16
+.equ FREQ     = 16000000
+.equ BAUD     = 9600
 
 
 ;Storages
@@ -80,8 +88,19 @@ hour: .
 
 INIT:
 	;Initial vlaues
-		ldi r19, 0x00
-		ldi r20, 0x00
+	ldi temp, 0x00
+	ldi display_hour, 0x00
+	ldi display_crono, 0x00
+	ldi stack, 0x00
+	ldi seg_unit, 0x00
+	ldi seg_dec, 0x00
+	ldi min_uni, 0x00
+	ldi min_dec, 0x00
+	ldi hour, 0x00
+	ldi crono, 0x00
+	ldi delay, 0x00
+	ldi mode_status, 0x00
+
 
 	;Stack initialization
 		ldi stack, low(RAMEND)
@@ -101,7 +120,7 @@ INIT:
 		.error "TOP is out of range"
 		.endif
 
-	;Config the ports (DDR's)
+	;Config the ports (DDR's) - IO
 		ldi temp, CI4511 | buzzer
 		out DDRB, temp ; Port B is to CI4511 and buzzer
 
@@ -113,10 +132,42 @@ INIT:
 
 	;Enable especific interrupt
 
+	; Inicializa UART
+    ldi temp, HIGH((FREQ/(16*BAUD)) - 1)
+    out UBRR0H, temp
+    ldi temp, LOW((FREQ/(16*BAUD)) - 1)
+    out UBRR0L, temp
+    ldi temp, (1<<TXEN0)
+    out UCSR0B, temp
+    ldi temp, (1<<UCSZ01)|(1<<UCSZ00)
+    out UCSR0C, temp
+
+    ; Timer1 - 1s CTC
+    ldi temp, (1<<WGM12)
+    sts TCCR1B, temp
+    ldi temp, HIGH((FREQ/1024) - 1)
+    sts OCR1AH, temp
+    ldi temp, LOW((FREQ/1024) - 1)
+    sts OCR1AL, temp
+    ldi temp, (1<<OCIE1A)|(1<<TOIE1)
+    sts TIMSK1, temp
+    ldi temp, (1<<CS12)|(1<<CS10) ; Prescaler 1024
+    sts TCCR1B, temp
+
+    ; Interrup√ß√µes externas
+    ldi temp, (1<<INT0)|(1<<INT1)
+    out EIMSK, temp
+    ldi temp, (1<<ISC01)|(1<<ISC11)
+    out EICRA, temp
+    ldi temp, (1<<PCIE0)
+    out PCICR, temp
+    ldi temp, (1<<PCINT0)
+    out PCMSK0, temp
 
 	sei
 
 MAIN:
+	rjmp MAIN ; Infinite loop
 
 
 DELAY: ;Recebe o argumento da quantidade de delay em ms por r25
@@ -144,37 +195,81 @@ FUNC_BUZZER:
     sei ; Active the global interruptcion 
     ret
 
-	MODO:
-		push stack
-		in stack, SREG
-		push stack
+DEBOUMCING:
+	cli 
 
-		;TO DO: Implementar a lÛgica de troca de estado e as chamdas de rotinas necess·rias para garante a execuÁ„o ideal do prÛximo estadÛ
+	push stack
+	in stack, SREG
+	push stack
 
+	
+
+	ldi temp, 100
+	rcall DELAY ; Debouncing time
+
+
+	pop stack
+	out SREG, stack
+	pop stack
+
+	sei
+	ret
+
+KEEP_ALIVE_TIME:
+	;TO DO: reativar apenas o timer 1 para que se mantenha a sicronia entre o tempo do microcontrolador e o tempo real para a hora ficar atualizada
+
+
+MODO:
+	push stack
+	in stack, SREG
+	push stack
+    
+	inc mode_status
+	cpi mode_status, 3
+	brlo NO_RESET_MODE
+	ldi mode_status, 0	
+	NO_RESET_MODE:
+		RCALL FUNC_BUZZER
 		pop stack
 		out SREG, stack
 		pop stack
 		reti
 
-	START:
-		push stack
-		in stack, SREG
-		push stack
+START:
+	push stack
+	in stack, SREG
+	push stack
 
-		;TO DO: Muita coisa
+	MODO_ONE_START:
+		;to do: to do nothing
 
+	MODO_TWO_START:
+		;to do: implement the start/stop of cronomento
+
+	MODO_THREE_START:
+		;to do: implement logic to select the display to change the hour (config)
+
+	RETURN_START
 		pop stack
 		out SREG, stack
 		pop stack
 		reti
 
-	RESET:
-		push stack
-		in stack, SREG
-		push stack
+RESET:
+	push stack
+	in stack, SREG
+	push stack
 
-		;TO DO: Muita coisa
+	MODO_ONE_RESET:
+		;to do: to do nothing
 
+	MODO_TWO_RESET:
+		;to do: implement the reset of cronomento
+
+	MODO_THRE_RESET:
+		;to do: implement the incress of hour (config)
+
+	RETURN_RESET
 		pop stack
 		out SREG, stack
 		pop stack
