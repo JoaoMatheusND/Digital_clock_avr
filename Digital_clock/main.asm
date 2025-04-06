@@ -79,7 +79,6 @@ jmp RESET ;Interruption PCINT0 - button reset
 
 ;Storages
 show_display: .db display1, display2, display3, display4
-hour: .
 
 /* ******************************************* */
 
@@ -88,24 +87,26 @@ hour: .
 
 INIT:
 	;Initial vlaues
-	ldi temp, 0x00
-	ldi display_hour, 0x00
-	ldi display_crono, 0x00
-	ldi stack, 0x00
-	ldi seg_unit, 0x00
-	ldi seg_dec, 0x00
-	ldi min_uni, 0x00
-	ldi min_dec, 0x00
-	ldi hour, 0x00
-	ldi crono, 0x00
-	ldi delay, 0x00
-	ldi mode_status, 0x00
+	clr temp 
+	clr display_hour 
+	clr display_crono 
+	clr stack 
+	clr seg_unit 
+	clr seg_dec 
+	clr min_uni 
+	clr min_dec 
+	clr hour 
+	clr crono 
+	clr delay
+	clr mode_status
 
 
 	;Stack initialization
-		ldi stack, low(RAMEND)
+		ldi temp, low(RAMEND)
+		mov stack, temp
 		out SPL, stack
-		ldi stack, high(RAMEND)
+		ldi temp, high(RAMEND)
+		mov stack, temp
 		out SPH, stack
 
 	;Config timer to modo1
@@ -169,16 +170,16 @@ INIT:
 MAIN:
 	rjmp MAIN ; Infinite loop
 
-
-DELAY: ;Recebe o argumento da quantidade de delay em ms por r25
-	ldi r26 , byte3(cloclkMHz * 1000 * temp / 5)
-	ldi r27, HIGH(byte3(cloclkMHz * 1000 * temp / 5))
-	ldi r28, LOW(byte3(cloclkMHz * 1000 * temp / 5))
-
-	sub	r28, 1
-	sbci r27, 0
-	sbci r26, 0
-	brcc pc-3
+;Recebe o argumento da quantidade de delay em ms por r25 (definido por temp)
+;DELAY: 
+;	ldi r27 , byte3(cloclkMHz * 1000 * temp / 5)
+;	ldi r28, HIGH(byte3(cloclkMHz * 1000 * temp / 5))
+;	ldi r29, LOW(byte3(cloclkMHz * 1000 * temp / 5))
+;
+;	sub	r29, 1
+;	sbci r28, 0
+;	sbci r27, 0
+;	brcc pc-3
 	
 	ret 
 
@@ -218,6 +219,10 @@ DEBOUMCING:
 KEEP_ALIVE_TIME:
 	;TO DO: reativar apenas o timer 1 para que se mantenha a sicronia entre o tempo do microcontrolador e o tempo real para a hora ficar atualizada
 
+UPDATE_HOUR:
+	;TO DO: implemente de logic to save the hour in the sceg (data memory)
+	reti
+
 
 MODO:
 	push stack
@@ -249,7 +254,7 @@ START:
 	MODO_THREE_START:
 		;to do: implement logic to select the display to change the hour (config)
 
-	RETURN_START
+	RETURN_START:
 		pop stack
 		out SREG, stack
 		pop stack
@@ -269,7 +274,7 @@ RESET:
 	MODO_THRE_RESET:
 		;to do: implement the incress of hour (config)
 
-	RETURN_RESET
+	RETURN_RESET:
 		pop stack
 		out SREG, stack
 		pop stack
