@@ -39,10 +39,10 @@ jmp RESET ;Interruption PCINT0 - button reset
 .def display_hour  = r17 ; Exclusive use for modes 1 and 3 (show and adjust time for display)
 .def display_crono = r18 ; Exclusive use for mode 2 (show local cronometro)
 .def stack		   = r0  ; Exclusive use for stack SREG config
-.def seg_unit	   = r22 ; Used to represent the unidade dos segundos
-.def seg_dec	   = r23 ; Used to represent the dezenas dos segundos
-.def min_uni	   = r24 ; Used to represent the unidade dos minutos
-.def min_dec	   = r25 ; Used to represent the dezenas dos minutos
+.def mm_time	   = r22 ; Used to represent the minutes of mode 1
+.def ss_time	   = r23 ; Used to represent the seconds of mode 1
+.def mm_crono	   = r24 ; Used to represent the minutes of mode 2
+.def ss_crono	   = r25 ; Used to represent the seocnds of mode 2
 .def hour  		   = r19
 .def crono 		   = r20
 .def delay 		   = r21
@@ -72,9 +72,11 @@ jmp RESET ;Interruption PCINT0 - button reset
 .equ reset_button = 0b00010000
 .equ buttons	  = modo_button | start_button | reset_button
 
-.equ cloclkMHz = 16
-.equ FREQ     = 16000000
-.equ BAUD     = 9600
+.equ sum_msn	  = (1 << 4) ; Used to sium 
+
+.equ cloclkMHz    = 16
+.equ FREQ         = 16000000
+.equ BAUD         = 9600
 
 
 ;Storages
@@ -87,18 +89,18 @@ show_display: .db display1, display2, display3, display4
 
 INIT:
 	;Initial vlaues
-	clr temp 
-	clr display_hour 
-	clr display_crono 
-	clr stack 
-	clr seg_unit 
-	clr seg_dec 
-	clr min_uni 
-	clr min_dec 
-	clr hour 
-	clr crono 
-	clr delay
-	clr mode_status
+		clr temp 
+		clr display_hour 
+		clr display_crono 
+		clr stack 
+		clr mm_time 
+		clr ss_time
+		clr mm_crono
+		clr ss_crono
+		clr hour 
+		clr crono 
+		clr delay
+		clr mode_status
 
 
 	;Stack initialization
@@ -134,36 +136,36 @@ INIT:
 	;Enable especific interrupt
 
 	; Inicializa UART
-    ldi temp, HIGH((FREQ/(16*BAUD)) - 1)
-    out UBRR0H, temp
-    ldi temp, LOW((FREQ/(16*BAUD)) - 1)
-    out UBRR0L, temp
-    ldi temp, (1<<TXEN0)
-    out UCSR0B, temp
-    ldi temp, (1<<UCSZ01)|(1<<UCSZ00)
-    out UCSR0C, temp
+		ldi temp, HIGH((FREQ/(16*BAUD)) - 1)
+		out UBRR0H, temp
+		ldi temp, LOW((FREQ/(16*BAUD)) - 1)
+		out UBRR0L, temp
+		ldi temp, (1<<TXEN0)
+		out UCSR0B, temp
+		ldi temp, (1<<UCSZ01)|(1<<UCSZ00)
+		out UCSR0C, temp
 
     ; Timer1 - 1s CTC
-    ldi temp, (1<<WGM12)
-    sts TCCR1B, temp
-    ldi temp, HIGH((FREQ/1024) - 1)
-    sts OCR1AH, temp
-    ldi temp, LOW((FREQ/1024) - 1)
-    sts OCR1AL, temp
-    ldi temp, (1<<OCIE1A)|(1<<TOIE1)
-    sts TIMSK1, temp
-    ldi temp, (1<<CS12)|(1<<CS10) ; Prescaler 1024
-    sts TCCR1B, temp
+		ldi temp, (1<<WGM12)
+		sts TCCR1B, temp
+		ldi temp, HIGH((FREQ/1024) - 1)
+		sts OCR1AH, temp
+		ldi temp, LOW((FREQ/1024) - 1)
+		sts OCR1AL, temp
+		ldi temp, (1<<OCIE1A)|(1<<TOIE1)
+		sts TIMSK1, temp
+		ldi temp, (1<<CS12)|(1<<CS10) ; Prescaler 1024
+		sts TCCR1B, temp
 
     ; Interrupções externas
-    ldi temp, (1<<INT0)|(1<<INT1)
-    out EIMSK, temp
-    ldi temp, (1<<ISC01)|(1<<ISC11)
-    out EICRA, temp
-    ldi temp, (1<<PCIE0)
-    out PCICR, temp
-    ldi temp, (1<<PCINT0)
-    out PCMSK0, temp
+		ldi temp, (1<<INT0)|(1<<INT1)
+		out EIMSK, temp
+		ldi temp, (1<<ISC01)|(1<<ISC11)
+		out EICRA, temp
+		ldi temp, (1<<PCIE0)
+		out PCICR, temp
+		ldi temp, (1<<PCINT0)
+		out PCMSK0, temp
 
 	sei
 
@@ -219,8 +221,76 @@ DEBOUMCING:
 KEEP_ALIVE_TIME:
 	;TO DO: reativar apenas o timer 1 para que se mantenha a sicronia entre o tempo do microcontrolador e o tempo real para a hora ficar atualizada
 
-UPDATE_HOUR:
-	;TO DO: implemente de logic to save the hour in the sceg (data memory)
+UPDATE_TIME:
+	ldi temp, 1
+	add ss_time, temp ; Incress the second of time
+	
+	mov temp, ss_time
+
+	rcall GET_LAST_4_BITS
+
+	cpi temp, 0x0a ; Check if the second is 10
+	brlo RESET_LSN_SECOND ; If the second is less than 10, go to reset the last 4 bits of the second
+	reti
+
+	RESET_LSN_SECOND:
+		mov temp, ss_time 
+		rcall GET_MOST_4_BITS
+		ldi temp, sum_msn ; Add 1 to the most significant bit of the second
+		add ss_time, temp
+	
+	mov temp, ss_time
+
+	rcall GET_MOST_4_BITS
+
+	cpi temp, 0x60 ; Check if the second is 60
+	brlo RESET_MSN_SECOND ; If the second is less than 60, go to reset the last 4 bits of the minute
+	reti 
+
+	RESET_MSN_SECOND:
+		clr ss_time ; Reset the second to 0
+		mov temp, mm_time 
+		rcall GET_LAST_4_BITS
+		ldi temp, 1 ; Add 1 to the most significant bit of the second
+		add mm_time, temp
+
+	mov temp, mm_time
+
+	rcall GET_LAST_4_BITS
+
+	cpi temp, 0x0a ; Check if the second is 10
+	brlo RESET_LSN_MINUTES ; If the second is less than 10, go to reset the last 4 bits of the second
+	reti
+
+	RESET_LSN_MINUTES:
+		mov temp, mm_time 
+		rcall GET_MOST_4_BITS
+		ldi temp, sum_msn ; Add 1 to the most significant bit of the second
+		add mm_time, temp
+	
+	mov temp, mm_time
+
+	rcall GET_MOST_4_BITS
+
+	cpi temp, 0x60 ; Check if the second is 60
+	brlo RESET_MSN_MINUTES ; If the second is less than 60, go to reset the last 4 bits of the minute
+	reti 
+
+	RESET_MSM_MINUTES:
+		clr mm_time ; Reset the minutes to 0
+
+	reti
+
+GET_LAST_4_BITS:
+	andi temp, 0b00001111 ; Get the last 4 bits of the register
+	ret
+
+GET_MOST_4_BITS:
+	andi temp, 0b11110000 ; Get the most 4 bits of the register
+	ret
+
+UPDATE_CRONO:
+	;TO DO: implemente de logic to save the crono in the sceg (data memory)
 	reti
 
 
@@ -245,8 +315,17 @@ START:
 	in stack, SREG
 	push stack
 
+	cpi modo_status, 0
+	brlo MODO_ONE_START
+
+	cpi modo_status, 1
+	brlo MODO_TWO_START
+
+	cpi modo_status, 2
+	brlo MODO_THREE_START
+
 	MODO_ONE_START:
-		;to do: to do nothing
+		jmp RETURN_START
 
 	MODO_TWO_START:
 		;to do: implement the start/stop of cronomento
@@ -264,6 +343,15 @@ RESET:
 	push stack
 	in stack, SREG
 	push stack
+
+	cpi modo_status, 0
+	brlo MODO_ONE_RESET
+
+	cpi modo_status, 1
+	brlo MODO_TWO_RESET
+
+	cpi modo_status, 2
+	brlo MODO_THREE_RESET
 
 	MODO_ONE_RESET:
 		;to do: to do nothing
