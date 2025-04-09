@@ -24,7 +24,7 @@ jmp RESET ;Interruption PCINT0 - button reset
 
 ;TIME
 .org OC1Aaddr
-	jmp UPDATE_HOUR
+	jmp UPDATE_TIME
 
 ;Serial printer
 .org 0x28
@@ -46,7 +46,7 @@ jmp RESET ;Interruption PCINT0 - button reset
 .def hour  		   = r19
 .def crono 		   = r20
 .def delay 		   = r21
-.def mode_status   = r26 ; Used to represent the mode of the clock
+.def modo_status   = r26 ; Used to represent the mode of the clock
 
 ;.SET
 
@@ -100,7 +100,7 @@ INIT:
 		clr hour 
 		clr crono 
 		clr delay
-		clr mode_status
+		clr modo_status
 
 
 	;Stack initialization
@@ -276,7 +276,7 @@ UPDATE_TIME:
 	brlo RESET_MSN_MINUTES ; If the second is less than 60, go to reset the last 4 bits of the minute
 	reti 
 
-	RESET_MSM_MINUTES:
+	RESET_MSN_MINUTES:
 		clr mm_time ; Reset the minutes to 0
 
 	reti
@@ -299,10 +299,10 @@ MODO:
 	in stack, SREG
 	push stack
     
-	inc mode_status
-	cpi mode_status, 3
+	inc modo_status
+	cpi modo_status, 3
 	brlo NO_RESET_MODE
-	ldi mode_status, 0	
+	ldi modo_status, 0	
 	NO_RESET_MODE:
 		RCALL FUNC_BUZZER
 		pop stack
@@ -359,7 +359,7 @@ RESET:
 	MODO_TWO_RESET:
 		;to do: implement the reset of cronomento
 
-	MODO_THRE_RESET:
+	MODO_THREE_RESET:
 		;to do: implement the incress of hour (config)
 
 	RETURN_RESET:
