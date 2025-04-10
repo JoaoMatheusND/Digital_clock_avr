@@ -38,7 +38,7 @@ jmp RESET ;Interruption PCINT0 - button reset
 .def temp          = r16 ; Used only with temporary data
 .def display_hour  = r17 ; Exclusive use for modes 1 and 3 (show and adjust time for display)
 .def display_crono = r18 ; Exclusive use for mode 2 (show local cronometro)
-.def stack		   = r0  ; Exclusive use for stack SREG config
+.def stack		   = r5  ; Exclusive use for stack SREG config
 .def mm_time	   = r22 ; Used to represent the minutes of mode 1
 .def ss_time	   = r23 ; Used to represent the seconds of mode 1
 .def mm_crono	   = r24 ; Used to represent the minutes of mode 2
@@ -230,7 +230,7 @@ UPDATE_TIME:
 	rcall GET_LAST_4_BITS
 
 	cpi temp, 0x0a ; Check if the second is 10
-	brlo RESET_LSN_SECOND ; If the second is less than 10, go to reset the last 4 bits of the second
+	breq RESET_LSN_SECOND ; If the second is less than 10, go to reset the last 4 bits of the second
 	reti
 
 	RESET_LSN_SECOND:
@@ -244,14 +244,14 @@ UPDATE_TIME:
 	rcall GET_MOST_4_BITS
 
 	cpi temp, 0x60 ; Check if the second is 60
-	brlo RESET_MSN_SECOND ; If the second is less than 60, go to reset the last 4 bits of the minute
+	breq RESET_MSN_SECOND ; If the second is less than 60, go to reset the last 4 bits of the minute
 	reti 
 
 	RESET_MSN_SECOND:
 		clr ss_time ; Reset the second to 0
 		mov temp, mm_time 
 		rcall GET_LAST_4_BITS
-		ldi temp, 1 ; Add 1 to the most significant bit of the second
+		ldi temp, 1 ; Add 1 to the low significant bit of the second
 		add mm_time, temp
 
 	mov temp, mm_time
@@ -259,7 +259,7 @@ UPDATE_TIME:
 	rcall GET_LAST_4_BITS
 
 	cpi temp, 0x0a ; Check if the second is 10
-	brlo RESET_LSN_MINUTES ; If the second is less than 10, go to reset the last 4 bits of the second
+	breq RESET_LSN_MINUTES ; If the second is less than 10, go to reset the last 4 bits of the second
 	reti
 
 	RESET_LSN_MINUTES:
@@ -273,12 +273,12 @@ UPDATE_TIME:
 	rcall GET_MOST_4_BITS
 
 	cpi temp, 0x60 ; Check if the second is 60
-	brlo RESET_MSN_MINUTES ; If the second is less than 60, go to reset the last 4 bits of the minute
+	breq RESET_MSN_MINUTES ; If the second is less than 60, go to reset the last 4 bits of the minute
 	reti 
 
 	RESET_MSN_MINUTES:
 		clr mm_time ; Reset the minutes to 0
-
+		
 	reti
 
 GET_LAST_4_BITS:
@@ -301,14 +301,17 @@ MODO:
     
 	inc modo_status
 	cpi modo_status, 3
-	brlo NO_RESET_MODE
+	breq NO_RESET_MODE
 	ldi modo_status, 0	
+
 	NO_RESET_MODE:
 		RCALL FUNC_BUZZER
-		pop stack
-		out SREG, stack
-		pop stack
-		reti
+
+	pop stack
+	out SREG, stack
+	pop stack
+
+	reti
 
 START:
 	push stack
@@ -316,13 +319,13 @@ START:
 	push stack
 
 	cpi modo_status, 0
-	brlo MODO_ONE_START
+	breq MODO_ONE_START
 
 	cpi modo_status, 1
-	brlo MODO_TWO_START
+	breq MODO_TWO_START
 
 	cpi modo_status, 2
-	brlo MODO_THREE_START
+	breq MODO_THREE_START
 
 	MODO_ONE_START:
 		jmp RETURN_START
@@ -345,13 +348,13 @@ RESET:
 	push stack
 
 	cpi modo_status, 0
-	brlo MODO_ONE_RESET
+	breq MODO_ONE_RESET
 
 	cpi modo_status, 1
-	brlo MODO_TWO_RESET
+	breq MODO_TWO_RESET
 
 	cpi modo_status, 2
-	brlo MODO_THREE_RESET
+	breq MODO_THREE_RESET
 
 	MODO_ONE_RESET:
 		;to do: to do nothing
