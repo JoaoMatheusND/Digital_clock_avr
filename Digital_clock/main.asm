@@ -35,10 +35,11 @@ jmp RESET ;Interruption PCINT0 - button reset
 
 /* Set the varibles and registes defines to use at the code */ 
 ;DEFINES
+.def stack		   = r5  ; Exclusive use for stack SREG config
+.def flag	       = r6  ; Exclusive use to define if the nibble reg to inc is xxxx0000 or 00000xxxx 
 .def temp          = r16 ; Used only with temporary data
 .def display_hour  = r17 ; Exclusive use for modes 1 and 3 (show and adjust time for display)
 .def display_crono = r18 ; Exclusive use for mode 2 (show local cronometro)
-.def stack		   = r5  ; Exclusive use for stack SREG config
 .def mm_time	   = r22 ; Used to represent the minutes of mode 1
 .def ss_time	   = r23 ; Used to represent the seconds of mode 1
 .def mm_crono	   = r24 ; Used to represent the minutes of mode 2
@@ -93,6 +94,7 @@ INIT:
 		clr display_hour 
 		clr display_crono 
 		clr stack 
+		clr flag
 		clr mm_time 
 		clr ss_time
 		clr mm_crono
@@ -221,6 +223,14 @@ DEBOUMCING:
 KEEP_ALIVE_TIME:
 	;TO DO: reativar apenas o timer 1 para que se mantenha a sicronia entre o tempo do microcontrolador e o tempo real para a hora ficar atualizada
 
+GET_LAST_4_BITS:
+	andi temp, 0b00001111 ; Get the last 4 bits of the register
+	ret
+
+GET_MOST_4_BITS:
+	andi temp, 0b11110000 ; Get the most 4 bits of the register
+	ret
+
 UPDATE_TIME:
 	ldi temp, 1
 	add ss_time, temp ; Incress the second of time
@@ -281,18 +291,86 @@ UPDATE_TIME:
 		
 	reti
 
-GET_LAST_4_BITS:
-	andi temp, 0b00001111 ; Get the last 4 bits of the register
-	ret
-
-GET_MOST_4_BITS:
-	andi temp, 0b11110000 ; Get the most 4 bits of the register
-	ret
-
 UPDATE_CRONO:
-	;TO DO: implemente de logic to save the crono in the sceg (data memory)
+	ldi temp, 1
+	add ss_crono, temp ; Incress the second of time
+	
+	mov temp, ss_crono
+
+	rcall GET_LAST_4_BITS
+
+	cpi temp, 0x0a ; Check if the second is 10
+	breq RESET_LSN_SECOND ; If the second is less than 10, go to reset the last 4 bits of the second
 	reti
 
+	RESET_LSN_SECOND:
+		mov temp, ss_crono 
+		rcall GET_MOST_4_BITS
+		ldi temp, sum_msn ; load 1 to the most significant nibble of the second
+		add ss_crono, temp
+	
+	mov temp, ss_crono
+
+	rcall GET_MOST_4_BITS
+
+	cpi temp, 0x60 ; Check if the second is 60
+	breq RESET_MSN_SECOND ; If the second is less than 60, go to reset the last 4 bits of the minute
+	reti 
+
+	RESET_MSN_SECOND:
+		clr ss_crono ; Reset the second to 0
+		mov temp, mm_crono 
+		rcall GET_LAST_4_BITS
+		ldi temp, 1 ; Add 1 to the low significant bit of the second
+		add mm_crono, temp
+
+	mov temp, mm_crono
+
+	rcall GET_LAST_4_BITS
+
+	cpi temp, 0x0a ; Check if the second is 10
+	breq RESET_LSN_MINUTES ; If the second is less than 10, go to reset the last 4 bits of the second
+	reti
+
+	RESET_LSN_MINUTES:
+		mov temp, mm_crono 
+		rcall GET_MOST_4_BITS
+		ldi temp, sum_msn ; Add 1 to the most significant bit of the second
+		add mm_crono, temp
+	
+	mov temp, mm_crono
+
+	rcall GET_MOST_4_BITS
+
+	cpi temp, 0x60 ; Check if the second is 60
+	breq RESET_MSN_MINUTES ; If the second is less than 60, go to reset the last 4 bits of the minute
+	reti 
+
+	RESET_MSN_MINUTES:
+		clr mm_crono ; Reset the minutes to 0
+		
+	reti
+
+; Soma 1 em um nibble especifico de um reg que é passado por temp
+ADJUST_NIBBLE_TIME:
+	cp flag, 0b00000001 ; Check if the nibble is the last 4 bits
+	breq LAST_NIBBLE ; If the nibble is the last 4 bits, go to reset the last 4 bits of the second
+	inc temp ; Incress the nibble of the register
+	cpi temp, 0x0a ; Check if the nibble is 10
+	breq CLEAN_LAST_LSN_NIBBLE ; If the nibble is 10, go to reset the last 4 bits of the second
+	ret
+	CLEAN_LAST_LSN_NIBBLE:
+		andi temp, 0b11110000 ; Reset the last 4 bits of the register
+		ret
+
+	LAST_NIBBLE:
+		add temp, sum_msn ; Add 1 to the most significant nibble
+		cpi temp, 0x50 ; Check if the nibble is 10
+		breq CLEAN_MOST_MSN_NIBBLE ; If the nibble is 10, go to reset the last 4 bits of the second
+		ret
+		CLEAN_MOST_MSN_NIBBLE:
+			andi temp, 0b00001111 ; Reset the most significant nibble of the register
+			ret	
 
 MODO:
 	push stack
