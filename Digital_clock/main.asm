@@ -135,6 +135,9 @@ INIT:
 		ldi temp, buttons
 		out DDRD, temp  ; Port D is to receiver the buttons and call the callbacks to system work very well
 
+		ldi temp, display1
+		out PORTC, temp
+
 	;Enable especific interrupt
 
 	; Inicializa UART
@@ -392,19 +395,19 @@ MODO:
 	push stack
 	in stack, SREG
 	push stack
+	
+	rcall FUNC_BUZZER ; Even that the state is chenage the buzzer is play
     
 	inc modo_status
 	cpi modo_status, 0x03
 	brne NO_RESET_MODE
-	rcall FUNC_BUZZER
 	ldi modo_status, 0x00
 
 	NO_RESET_MODE:
-		ldi temp, full_output
-		out PORTC, TEMP
 		mov temp, modo_status
 		lsl temp
 		out PORTB, temp
+
 	
 	pop stack
 	out SREG, stack
