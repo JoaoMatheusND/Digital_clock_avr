@@ -20,6 +20,8 @@ jmp INIT  ;Interruption RESET
 ;BUTTONS
 jmp MODO  ;Interruption INT0   - button modo
 jmp START ;Interruption INT1   - button start
+
+.org 0x000E
 jmp RESET ;Interruption PCINT0 - button reset
 
 ;TIME
@@ -167,10 +169,10 @@ INIT:
 		out EIMSK, temp
 		ldi temp, (1<<ISC01)|(1<<ISC11)
 		sts EICRA, temp
-		ldi temp, (1<<PCIE0)
+		ldi temp, (1<<PCIE2)         ; Habilita interrupção no grupo PCINT2 (PORTD)
 		sts PCICR, temp
-		ldi temp, (1<<PCINT0)
-		sts PCMSK0, temp
+		ldi temp, (1<<PCINT20)       ; Habilita especificamente o pino PD4
+		sts PCMSK2, temp
 
 	sei
 
@@ -401,13 +403,9 @@ MODO:
 	inc modo_status
 	cpi modo_status, 0x03
 	brne NO_RESET_MODE
-	ldi modo_status, 0x00
-
+	clr modo_status
+		
 	NO_RESET_MODE:
-		mov temp, modo_status
-		lsl temp
-		out PORTB, temp
-
 	
 	pop stack
 	out SREG, stack
@@ -430,13 +428,22 @@ START:
 	breq MODO_THREE_START
 
 	MODO_ONE_START:
+		ldi temp, 0x1
+		lsl temp
+		out PORTB, temp
 		jmp RETURN_START
 
 	MODO_TWO_START:
+		ldi temp, 0x2
+		lsl temp
+		out PORTB, temp
 		jmp RETURN_START
 
 
 	MODO_THREE_START:
+		ldi temp, 0x3
+		lsl temp
+		out PORTB, temp
 		jmp RETURN_START
 		
 
@@ -461,16 +468,28 @@ RESET:
 	breq MODO_THREE_RESET
 
 	MODO_ONE_RESET:
+		ldi temp, 0xa
+		lsl temp
+		out PORTB, temp
+		jmp RETURN_RESET
 		;to do: to do nothing
 
 	MODO_TWO_RESET:
+		ldi temp, 0xb
+		lsl temp
+		out PORTB, temp
+		jmp RETURN_RESET
 		;to do: implement the reset of cronomento
 
 	MODO_THREE_RESET:
+		ldi temp, 0xc
+		lsl temp
+		out PORTB, temp
+		jmp RETURN_RESET
 		;to do: implement the incress of hour (config)
 
 	RETURN_RESET:
-		pop stack
+		pop stack		
 		out SREG, stack
 		pop stack
 		reti
