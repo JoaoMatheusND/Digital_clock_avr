@@ -114,13 +114,13 @@ INIT:
 		out SPH, stack
 
 	;Config timer to modo1
-		#define CLOCK 16.0e6 ;clock speed
-		#define DELAY 1 ;the tima will update at each second
+		.equ CLOCK = 16000000
+		.equ DELAYA = 1
 		.equ PRESCALE = 0b100 ;/256 prescale
 		.equ PRESCALE_DIV = 256
 		.equ WGM = 0b0100 ;Waveform generation mode: CTC
 		;you must ensure this value is between 0 and 65535
-		.equ TOP = int(0.5 + ((CLOCK/PRESCALE_DIV)*DELAY))
+		.equ TOP = int(0.5 + ((CLOCK/PRESCALE_DIV)*DELAYA))
 		.if TOP > 65535
 		.error "TOP is out of range"
 		.endif
@@ -139,13 +139,13 @@ INIT:
 
 	; Inicializa UART
 		ldi temp, HIGH((FREQ/(16*BAUD)) - 1)
-		out UBRR0H, temp
+		sts UBRR0H, temp
 		ldi temp, LOW((FREQ/(16*BAUD)) - 1)
-		out UBRR0L, temp
+		sts UBRR0L, temp
 		ldi temp, (1<<TXEN0)
-		out UCSR0B, temp
+		sts UCSR0B, temp
 		ldi temp, (1<<UCSZ01)|(1<<UCSZ00)
-		out UCSR0C, temp
+		sts UCSR0C, temp
 
     ; Timer1 - 1s CTC
 		ldi temp, (1<<WGM12)
@@ -163,11 +163,11 @@ INIT:
 		ldi temp, (1<<INT0)|(1<<INT1)
 		out EIMSK, temp
 		ldi temp, (1<<ISC01)|(1<<ISC11)
-		out EICRA, temp
+		sts EICRA, temp
 		ldi temp, (1<<PCIE0)
-		out PCICR, temp
+		sts PCICR, temp
 		ldi temp, (1<<PCINT0)
-		out PCMSK0, temp
+		sts PCMSK0, temp
 
 	sei
 
@@ -175,27 +175,45 @@ MAIN:
 	rjmp MAIN ; Infinite loop
 
 ;Recebe o argumento da quantidade de delay em ms por r25 (definido por temp)
-;DELAY: 
-;	ldi r27 , byte3(cloclkMHz * 1000 * temp / 5)
-;	ldi r28, HIGH(byte3(cloclkMHz * 1000 * temp / 5))
-;	ldi r29, LOW(byte3(cloclkMHz * 1000 * temp / 5))
-;
-;	sub	r29, 1
-;	sbci r28, 0
-;	sbci r27, 0
-;	brcc pc-3
-	
-	ret 
+; Espera (TEMP) milissegundos (valor entre 1 e 255)
+; Delay de aproximadamente 1ms por unidade em r25
+DELAY_DINAMIC:
+    push r24
+    push r23
+
+LOOP_MS:
+    ldi r24, 250     ; Inner loop
+    ldi r23, 32      ; Outer loop (250 * 32 ≈ 8000)
+
+LOOP_INNER:
+    dec r24
+    brne LOOP_INNER
+
+    dec r23
+    brne LOOP_INNER
+
+    dec temp
+    brne LOOP_MS
+
+    pop r23
+    pop r24
+    ret
+
 
 FUNC_BUZZER:
     cli ; Critical section - turn the global interruptcion off 
 
-    sbi PORTB, buzzer  ; Turn buzzer on
+    in   temp, PORTB         ; Lê PORTB para o registrador
+    ori  temp, (1 << buzzer) ; Ativa o bit correspondente ao pino do buzzer
+    out  PORTB, temp     ; Turn buzzer on
 
     ldi temp, 250       ; Await 250ms 
-	rcall DELAY
+	rcall DELAY_DINAMIC
 
-    cbi PORTB, buzzer  ; Turn buzzer off
+    in   temp, PORTB           ; Lê PORTB
+    andi temp, ~(1 << buzzer)  ; Limpa o bit do buzzer (inverte e faz AND)
+    out  PORTB, temp           ; Escreve de volta
+
 
     sei ; Active the global interruptcion 
     ret
@@ -210,7 +228,7 @@ DEBOUMCING:
 	
 
 	ldi temp, 100
-	rcall DELAY ; Debouncing time
+	rcall DELAY_DINAMIC ; Debouncing time
 
 
 	pop stack
@@ -300,10 +318,10 @@ UPDATE_CRONO:
 	rcall GET_LAST_4_BITS
 
 	cpi temp, 0x0a ; Check if the second is 10
-	breq RESET_LSN_SECOND ; If the second is less than 10, go to reset the last 4 bits of the second
+	breq RESET_LSN_SECOND_CRONO ; If the second is less than 10, go to reset the last 4 bits of the second
 	reti
 
-	RESET_LSN_SECOND:
+	RESET_LSN_SECOND_CRONO:
 		mov temp, ss_crono 
 		rcall GET_MOST_4_BITS
 		ldi temp, sum_msn ; load 1 to the most significant nibble of the second
@@ -317,7 +335,7 @@ UPDATE_CRONO:
 	breq RESET_MSN_SECOND ; If the second is less than 60, go to reset the last 4 bits of the minute
 	reti 
 
-	RESET_MSN_SECOND:
+	RESET_MSN_SECOND_CRONO:
 		clr ss_crono ; Reset the second to 0
 		mov temp, mm_crono 
 		rcall GET_LAST_4_BITS
@@ -329,10 +347,10 @@ UPDATE_CRONO:
 	rcall GET_LAST_4_BITS
 
 	cpi temp, 0x0a ; Check if the second is 10
-	breq RESET_LSN_MINUTES ; If the second is less than 10, go to reset the last 4 bits of the second
+	breq RESET_LSN_MINUTES_CRONO ; If the second is less than 10, go to reset the last 4 bits of the second
 	reti
 
-	RESET_LSN_MINUTES:
+	RESET_LSN_MINUTES_CRONO:
 		mov temp, mm_crono 
 		rcall GET_MOST_4_BITS
 		ldi temp, sum_msn ; Add 1 to the most significant bit of the second
@@ -343,18 +361,19 @@ UPDATE_CRONO:
 	rcall GET_MOST_4_BITS
 
 	cpi temp, 0x60 ; Check if the second is 60
-	breq RESET_MSN_MINUTES ; If the second is less than 60, go to reset the last 4 bits of the minute
+	breq RESET_MSN_MINUTES_CRONO ; If the second is less than 60, go to reset the last 4 bits of the minute
 	reti 
 
-	RESET_MSN_MINUTES:
+	RESET_MSN_MINUTES_CRONO:
 		clr mm_crono ; Reset the minutes to 0
 		
 	reti
 
 ; Soma 1 em um nibble especifico de um reg que é passado por temp
 ADJUST_NIBBLE_TIME:
-	cp flag, 0b00000001 ; Check if the nibble is the last 4 bits
-	breq LAST_NIBBLE ; If the nibble is the last 4 bits, go to reset the last 4 bits of the second
+	ldi r31, 0x01
+	cp flag, r31 ; Check if the nibble is the last 4 bits
+	breq MOST_NIBBLE ; If the nibble is the last 4 bits, go to reset the last 4 bits of the second
 	inc temp ; Incress the nibble of the register
 	cpi temp, 0x0a ; Check if the nibble is 10
 	breq CLEAN_LAST_LSN_NIBBLE ; If the nibble is 10, go to reset the last 4 bits of the second
@@ -363,8 +382,9 @@ ADJUST_NIBBLE_TIME:
 		andi temp, 0b11110000 ; Reset the last 4 bits of the register
 		ret
 
-	LAST_NIBBLE:
-		add temp, sum_msn ; Add 1 to the most significant nibble
+	MOST_NIBBLE:
+		ldi r31, sum_msn
+		add temp, r31 ; Add 1 to the most significant nibble
 		cpi temp, 0x50 ; Check if the nibble is 10
 		breq CLEAN_MOST_MSN_NIBBLE ; If the nibble is 10, go to reset the last 4 bits of the second
 		ret
