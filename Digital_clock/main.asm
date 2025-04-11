@@ -175,7 +175,7 @@ MAIN:
 	rjmp MAIN ; Infinite loop
 
 ;Recebe o argumento da quantidade de delay em ms por r25 (definido por temp)
-; Espera (TEMP) milissegundos (valor entre 1 e 255)
+; Espera (delay) milissegundos (valor entre 1 e 255)
 ; Delay de aproximadamente 1ms por unidade em r25
 DELAY_DINAMIC:
     push r24
@@ -192,7 +192,7 @@ LOOP_INNER:
     dec r23
     brne LOOP_INNER
 
-    dec temp
+    dec delay
     brne LOOP_MS
 
     pop r23
@@ -203,15 +203,14 @@ LOOP_INNER:
 FUNC_BUZZER:
     cli ; Critical section - turn the global interruptcion off 
 
-    in   temp, PORTB         ; Lê PORTB para o registrador
-    ori  temp, (1 << buzzer) ; Ativa o bit correspondente ao pino do buzzer
-    out  PORTB, temp     ; Turn buzzer on
+    ldi temp, buzzer
+	OUT PORTB, temp
 
-    ldi temp, 250       ; Await 250ms 
+    ldi delay, 90      ; Await 250ms 
 	rcall DELAY_DINAMIC
 
     in   temp, PORTB           ; Lê PORTB
-    andi temp, ~(1 << buzzer)  ; Limpa o bit do buzzer (inverte e faz AND)
+    andi temp, ~(buzzer)  ; Limpa o bit do buzzer (inverte e faz AND)
     out  PORTB, temp           ; Escreve de volta
 
 
@@ -227,7 +226,7 @@ DEBOUMCING:
 
 	
 
-	ldi temp, 100
+	ldi delay, 100
 	rcall DELAY_DINAMIC ; Debouncing time
 
 
@@ -237,9 +236,6 @@ DEBOUMCING:
 
 	sei
 	ret
-
-KEEP_ALIVE_TIME:
-	;TO DO: reativar apenas o timer 1 para que se mantenha a sicronia entre o tempo do microcontrolador e o tempo real para a hora ficar atualizada
 
 GET_LAST_4_BITS:
 	andi temp, 0b00001111 ; Get the last 4 bits of the register
@@ -398,13 +394,18 @@ MODO:
 	push stack
     
 	inc modo_status
-	cpi modo_status, 3
-	breq NO_RESET_MODE
-	ldi modo_status, 0	
+	cpi modo_status, 0x03
+	brne NO_RESET_MODE
+	rcall FUNC_BUZZER
+	ldi modo_status, 0x00
 
 	NO_RESET_MODE:
-		RCALL FUNC_BUZZER
-
+		ldi temp, full_output
+		out PORTC, TEMP
+		mov temp, modo_status
+		lsl temp
+		out PORTB, temp
+	
 	pop stack
 	out SREG, stack
 	pop stack
@@ -416,23 +417,25 @@ START:
 	in stack, SREG
 	push stack
 
-	cpi modo_status, 0
-	breq MODO_ONE_START
+	cpi modo_status, 0x00
+	breq MODO_ONE_START	
 
-	cpi modo_status, 1
+	cpi modo_status, 0x01
 	breq MODO_TWO_START
 
-	cpi modo_status, 2
+	cpi modo_status, 0x02
 	breq MODO_THREE_START
 
 	MODO_ONE_START:
 		jmp RETURN_START
 
 	MODO_TWO_START:
-		;to do: implement the start/stop of cronomento
+		jmp RETURN_START
+
 
 	MODO_THREE_START:
-		;to do: implement logic to select the display to change the hour (config)
+		jmp RETURN_START
+		
 
 	RETURN_START:
 		pop stack
