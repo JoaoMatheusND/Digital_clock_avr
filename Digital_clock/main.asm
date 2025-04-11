@@ -20,6 +20,8 @@ jmp INIT  ;Interruption RESET
 ;BUTTONS
 jmp MODO  ;Interruption INT0   - button modo
 jmp START ;Interruption INT1   - button start
+
+.org 0x000E
 jmp RESET ;Interruption PCINT0 - button reset
 
 ;TIME
@@ -167,10 +169,10 @@ INIT:
 		out EIMSK, temp
 		ldi temp, (1<<ISC01)|(1<<ISC11)
 		sts EICRA, temp
-		ldi temp, (1<<PCIE0)
+		ldi temp, (1<<PCIE2)         ; Habilita interrupção no grupo PCINT2 (PORTD)
 		sts PCICR, temp
-		ldi temp, (1<<PCINT0)
-		sts PCMSK0, temp
+		ldi temp, (1<<PCINT20)       ; Habilita especificamente o pino PD4
+		sts PCMSK2, temp
 
 	sei
 
@@ -487,7 +489,7 @@ RESET:
 		;to do: implement the incress of hour (config)
 
 	RETURN_RESET:
-		pop stack
+		pop stack		
 		out SREG, stack
 		pop stack
 		reti
