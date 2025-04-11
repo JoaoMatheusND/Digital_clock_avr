@@ -401,13 +401,9 @@ MODO:
 	inc modo_status
 	cpi modo_status, 0x03
 	brne NO_RESET_MODE
-	ldi modo_status, 0x00
-
+	clr modo_status
+		
 	NO_RESET_MODE:
-		mov temp, modo_status
-		lsl temp
-		out PORTB, temp
-
 	
 	pop stack
 	out SREG, stack
@@ -430,13 +426,22 @@ START:
 	breq MODO_THREE_START
 
 	MODO_ONE_START:
+		ldi temp, 0x1
+		lsl temp
+		out PORTB, temp
 		jmp RETURN_START
 
 	MODO_TWO_START:
+		ldi temp, 0x2
+		lsl temp
+		out PORTB, temp
 		jmp RETURN_START
 
 
 	MODO_THREE_START:
+		ldi temp, 0x3
+		lsl temp
+		out PORTB, temp
 		jmp RETURN_START
 		
 
@@ -461,12 +466,24 @@ RESET:
 	breq MODO_THREE_RESET
 
 	MODO_ONE_RESET:
+		ldi temp, 0xa
+		lsl temp
+		out PORTB, temp
+		jmp RETURN_RESET
 		;to do: to do nothing
 
 	MODO_TWO_RESET:
+		ldi temp, 0xb
+		lsl temp
+		out PORTB, temp
+		jmp RETURN_RESET
 		;to do: implement the reset of cronomento
 
 	MODO_THREE_RESET:
+		ldi temp, 0xc
+		lsl temp
+		out PORTB, temp
+		jmp RETURN_RESET
 		;to do: implement the incress of hour (config)
 
 	RETURN_RESET:
