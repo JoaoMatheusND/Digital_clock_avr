@@ -116,13 +116,13 @@ INIT:
 		out SPH, stack
 
 	;Config timer to modo1
-		.equ CLOCK = 16000000
-		.equ DELAYA = 1
+		#define CLOCK 16.0e6 ;clock speed
+		#define DELAY 0.0001 ;seconds
 		.equ PRESCALE = 0b100 ;/256 prescale
 		.equ PRESCALE_DIV = 256
 		.equ WGM = 0b0100 ;Waveform generation mode: CTC
 		;you must ensure this value is between 0 and 65535
-		.equ TOP = int(0.5 + ((CLOCK/PRESCALE_DIV)*DELAYA))
+		.equ TOP = int(0.5 + ((CLOCK/PRESCALE_DIV)*DELAY))
 		.if TOP > 65535
 		.error "TOP is out of range"
 		.endif
@@ -153,16 +153,20 @@ INIT:
 		sts UCSR0C, temp
 
     ; Timer1 - 1s CTC
-		ldi temp, (1<<WGM12)
-		sts TCCR1B, temp
-		ldi temp, HIGH((FREQ/1024) - 1)
+		ldi temp, high(TOP) ;initialize compare value (TOP)
 		sts OCR1AH, temp
-		ldi temp, LOW((FREQ/1024) - 1)
+		ldi temp, low(TOP)
 		sts OCR1AL, temp
-		ldi temp, (1<<OCIE1A)|(1<<TOIE1)
-		sts TIMSK1, temp
-		ldi temp, (1<<CS12)|(1<<CS10) ; Prescaler 1024
-		sts TCCR1B, temp
+		ldi temp, ((WGM&0b11) << WGM10) ;lower 2 bits of WGM
+		; WGM&0b11 = 0b0100 & 0b0011 = 0b0000 
+		sts TCCR1A, temp
+		;upper 2 bits of WGM and clock select
+		ldi temp, ((WGM>> 2) << WGM12)|(PRESCALE << CS10)
+		sts TCCR1B, temp ;start counter
+
+		lds	 r16, TIMSK1
+		sbr r16, 1 <<OCIE1A
+		sts TIMSK1, r16
 
     ; Interrupções externas
 		ldi temp, (1<<INT0)|(1<<INT1)
@@ -177,7 +181,73 @@ INIT:
 	sei
 
 MAIN:
-	rjmp MAIN ; Infinite loop
+	cpi modo_status, 0
+	breq MODO_ONE_MAIN
+
+	cpi modo_status, 1
+	breq MODO_TWO_MAIN
+
+	cpi modo_status, 2
+	breq MODO_THREE_MAIN
+
+	MODO_ONE_MAIN:
+		SHOW_DEC_MIN:
+			mov temp, mm_time
+			rcall GET_MOST_4_BITS ; Get the first 4 bits of the register (unit of seconds)
+			swap temp
+			lsl temp
+
+			out PORTB, temp ; Send the data to the display (unit of seconds)
+
+			ldi temp, display1
+			out PORTC, temp ; Set the display to show the seconds
+			;jmp CONTINUE
+
+
+		SHOW_UNI_MIN:
+			mov temp, mm_time
+			rcall GET_LAST_4_BITS ; Get the first 4 bits of the register (unit of seconds)
+			lsl temp
+
+			out PORTB, temp ; Send the data to the display (unit of seconds)
+
+			ldi temp, display2
+			out PORTC, temp ; Set the display to show the seconds
+
+
+
+		SHOW_DEC_SEG:
+			mov temp, ss_time
+			rcall GET_MOST_4_BITS ; Get the first 4 bits of the register (unit of seconds)
+			swap temp
+			lsl temp
+
+			out PORTB, temp ; Send the data to the display (unit of seconds)
+
+			ldi temp, display3
+			out PORTC, temp ; Set the display to show the seconds
+	
+
+
+		SHOW_UNI_SEG:
+			mov temp, ss_time
+			rcall GET_LAST_4_BITS ; Get the first 4 bits of the register (unit of seconds)
+			lsl temp
+
+			out PORTB, temp ; Send the data to the display (unit of seconds)
+
+			ldi temp, display4
+			out PORTC, temp ; Set the display to show the seconds
+			jmp CONTINUE
+
+
+
+	MODO_TWO_MAIN:
+
+	MODO_THREE_MAIN:
+
+	CONTINUE:
+		rjmp MAIN ; Infinite loop
 
 ;Recebe o argumento da quantidade de delay em ms por r25 (definido por temp)
 ; Espera (delay) milissegundos (valor entre 1 e 255)
@@ -211,7 +281,7 @@ FUNC_BUZZER:
     ldi temp, buzzer
 	OUT PORTB, temp
 
-    ldi delay, 90      ; Await 250ms 
+    ldi delay, 90      ; Await 90ms 
 	rcall DELAY_DINAMIC
 
     in   temp, PORTB           ; Lê PORTB
@@ -222,7 +292,7 @@ FUNC_BUZZER:
     sei ; Active the global interruptcion 
     ret
 
-DEBOUMCING:
+DEBOUNCING:
 	cli 
 
 	push stack
@@ -251,122 +321,96 @@ GET_MOST_4_BITS:
 	ret
 
 UPDATE_TIME:
-	ldi temp, 1
-	add ss_time, temp ; Incress the second of time
+	inc ss_time
 	
 	mov temp, ss_time
-
 	rcall GET_LAST_4_BITS
 
 	cpi temp, 0x0a ; Check if the second is 10
-	breq RESET_LSN_SECOND ; If the second is less than 10, go to reset the last 4 bits of the second
+	breq RESET_LSN_SECOND ; If the second is less than 10, just return
 	reti
 
 	RESET_LSN_SECOND:
-		mov temp, ss_time 
-		rcall GET_MOST_4_BITS
-		ldi temp, sum_msn ; Add 1 to the most significant bit of the second
-		add ss_time, temp
-	
-	mov temp, ss_time
+		andi ss_time, 0xf0
+		swap ss_time
+		inc ss_time
+		swap ss_time
 
-	rcall GET_MOST_4_BITS
-
-	cpi temp, 0x60 ; Check if the second is 60
-	breq RESET_MSN_SECOND ; If the second is less than 60, go to reset the last 4 bits of the minute
-	reti 
-
-	RESET_MSN_SECOND:
-		clr ss_time ; Reset the second to 0
-		mov temp, mm_time 
-		rcall GET_LAST_4_BITS
-		ldi temp, 1 ; Add 1 to the low significant bit of the second
-		add mm_time, temp
-
-	mov temp, mm_time
-
-	rcall GET_LAST_4_BITS
-
-	cpi temp, 0x0a ; Check if the second is 10
-	breq RESET_LSN_MINUTES ; If the second is less than 10, go to reset the last 4 bits of the second
+	cpi ss_time, 0x60
+	breq RESET_MSN_SECOND
 	reti
 
-	RESET_LSN_MINUTES:
-		mov temp, mm_time 
-		rcall GET_MOST_4_BITS
-		ldi temp, sum_msn ; Add 1 to the most significant bit of the second
-		add mm_time, temp
-	
+	RESET_MSN_SECOND:
+		clr ss_time ; Reset the second to 00
+
+	inc mm_time
 	mov temp, mm_time
+	rcall GET_LAST_4_BITS
+	cpi temp, 0x0a 
+	breq RESET_LSN_MINUTES
+	RETI
 
-	rcall GET_MOST_4_BITS
+	RESET_LSN_MINUTES:
+		andi mm_time, 0xf0
+		swap mm_time
+		inc mm_time
+		swap mm_time
 
-	cpi temp, 0x60 ; Check if the second is 60
-	breq RESET_MSN_MINUTES ; If the second is less than 60, go to reset the last 4 bits of the minute
-	reti 
+	cpi mm_time, 0x60
+	breq RESET_MSN_MINUTES
+	reti
 
 	RESET_MSN_MINUTES:
 		clr mm_time ; Reset the minutes to 0
+		clr ss_time ; Reset the segunds to 0
 		
 	reti
 
+
+
 UPDATE_CRONO:
-	ldi temp, 1
-	add ss_crono, temp ; Incress the second of time
+	inc ss_crono
 	
 	mov temp, ss_crono
-
 	rcall GET_LAST_4_BITS
 
 	cpi temp, 0x0a ; Check if the second is 10
-	breq RESET_LSN_SECOND_CRONO ; If the second is less than 10, go to reset the last 4 bits of the second
+	breq RESET_LSN_SECOND ; If the second is less than 10, just return
 	reti
 
-	RESET_LSN_SECOND_CRONO:
-		mov temp, ss_crono 
-		rcall GET_MOST_4_BITS
-		ldi temp, sum_msn ; load 1 to the most significant nibble of the second
-		add ss_crono, temp
-	
-	mov temp, ss_crono
+	RESET_LSN_SECOND:
+		andi ss_crono, 0xf0
+		swap ss_crono
+		inc ss_crono
+		swap ss_crono
 
-	rcall GET_MOST_4_BITS
+	cpi ss_crono, 0x60
+	breq RESET_MSN_SECOND
+	reti
 
-	cpi temp, 0x60 ; Check if the second is 60
-	breq RESET_MSN_SECOND ; If the second is less than 60, go to reset the last 4 bits of the minute
-	reti 
+	RESET_MSN_SECOND:
+		clr ss_crono ; Reset the second to 00
 
-	RESET_MSN_SECOND_CRONO:
-		clr ss_crono ; Reset the second to 0
-		mov temp, mm_crono 
-		rcall GET_LAST_4_BITS
-		ldi temp, 1 ; Add 1 to the low significant bit of the second
-		add mm_crono, temp
-
+	inc mm_crono
 	mov temp, mm_crono
-
 	rcall GET_LAST_4_BITS
+	cpi temp, 0x0a 
+	breq RESET_LSN_MINUTES
+	RETI
 
-	cpi temp, 0x0a ; Check if the second is 10
-	breq RESET_LSN_MINUTES_CRONO ; If the second is less than 10, go to reset the last 4 bits of the second
+	RESET_LSN_MINUTES:
+		andi mm_crono, 0xf0
+		swap mm_crono
+		inc mm_crono
+		swap mm_crono
+
+	cpi mm_crono, 0x60
+	breq RESET_MSN_MINUTES
 	reti
 
-	RESET_LSN_MINUTES_CRONO:
-		mov temp, mm_crono 
-		rcall GET_MOST_4_BITS
-		ldi temp, sum_msn ; Add 1 to the most significant bit of the second
-		add mm_crono, temp
-	
-	mov temp, mm_crono
-
-	rcall GET_MOST_4_BITS
-
-	cpi temp, 0x60 ; Check if the second is 60
-	breq RESET_MSN_MINUTES_CRONO ; If the second is less than 60, go to reset the last 4 bits of the minute
-	reti 
-
-	RESET_MSN_MINUTES_CRONO:
+	RESET_MSN_MINUTES:
 		clr mm_crono ; Reset the minutes to 0
+		clr ss_crono ; Reset the segunds to 0
 		
 	reti
 

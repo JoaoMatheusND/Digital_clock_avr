@@ -1,18 +1,19 @@
 <ASSEMBLER_INFO>
  <VERSION>2.2.8</VERSION>
  <DEVICE>"ATmega328P"</DEVICE>
- <WORKING_DIR>c:\users\jmnas\Documents\Atmel Studio\7.0\Digital_clock\Digital_clock\Debug</WORKING_DIR>
+ <WORKING_DIR>C:\Users\jmnas\Documents\Atmel Studio\7.0\Digital_clock\Digital_clock\Debug</WORKING_DIR>
  <INCLUDE_PATH>
   <DIR>C:/Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.7.374\avrasm\inc</DIR>
   <DIR>C:\Program Files (x86)\Atmel\Studio\7.0\toolchain\avr8\avrassembler\Include</DIR>
   <DIR></DIR>
  </INCLUDE_PATH>
- <SOURCE_FILE>c:\users\jmnas\Documents\Atmel Studio\7.0\Digital_clock\Digital_clock\main.asm</SOURCE_FILE>
+ <SOURCE_FILE>C:\Users\jmnas\Documents\Atmel Studio\7.0\Digital_clock\Digital_clock\main.asm</SOURCE_FILE>
  <INCLUDED_FILES>
   <FILE>C:/Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.7.374\avrasm\inc\m328Pdef.inc</FILE>
+  <FILE>C:/Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.7.374\avrasm\inc\m328pdef.inc</FILE>
  </INCLUDED_FILES>
  <OBJECT_FILES>
-  <FILE>c:\users\jmnas\Documents\Atmel Studio\7.0\Digital_clock\Digital_clock\Debug\Digital_clock.obj</FILE>
+  <FILE>C:\Users\jmnas\Documents\Atmel Studio\7.0\Digital_clock\Digital_clock\Debug\Digital_clock.obj</FILE>
  </OBJECT_FILES>
  <HEX_FILES>
   <FILE>Digital_clock.hex</FILE>
@@ -22,7 +23,44 @@
   <FILE>Digital_clock.lss</FILE>
  </OUTPUT_FILES>
  <LABELS>
-  <INIT><FILE>c:\users\jmnas\Documents\Atmel Studio\7.0\Digital_clock\Digital_clock\main.asm</FILE><LINE>69</LINE></INIT>
-  <show_display><FILE>c:\users\jmnas\Documents\Atmel Studio\7.0\Digital_clock\Digital_clock\main.asm</FILE><LINE>62</LINE></show_display>
+  <INIT><FILE>C:\Users\jmnas\Documents\Atmel Studio\7.0\Digital_clock\Digital_clock\main.asm</FILE><LINE>93</LINE></INIT>
+  <MODO><FILE>C:\Users\jmnas\Documents\Atmel Studio\7.0\Digital_clock\Digital_clock\main.asm</FILE><LINE>454</LINE></MODO>
+  <START><FILE>C:\Users\jmnas\Documents\Atmel Studio\7.0\Digital_clock\Digital_clock\main.asm</FILE><LINE>474</LINE></START>
+  <RESET><FILE>C:\Users\jmnas\Documents\Atmel Studio\7.0\Digital_clock\Digital_clock\main.asm</FILE><LINE>514</LINE></RESET>
+  <UPDATE_TIME><FILE>C:\Users\jmnas\Documents\Atmel Studio\7.0\Digital_clock\Digital_clock\main.asm</FILE><LINE>323</LINE></UPDATE_TIME>
+  <show_display><FILE>C:\Users\jmnas\Documents\Atmel Studio\7.0\Digital_clock\Digital_clock\main.asm</FILE><LINE>86</LINE></show_display>
+  <MAIN><FILE>C:\Users\jmnas\Documents\Atmel Studio\7.0\Digital_clock\Digital_clock\main.asm</FILE><LINE>183</LINE></MAIN>
+  <MODO_ONE_MAIN><FILE>C:\Users\jmnas\Documents\Atmel Studio\7.0\Digital_clock\Digital_clock\main.asm</FILE><LINE>193</LINE></MODO_ONE_MAIN>
+  <MODO_TWO_MAIN><FILE>C:\Users\jmnas\Documents\Atmel Studio\7.0\Digital_clock\Digital_clock\main.asm</FILE><LINE>245</LINE></MODO_TWO_MAIN>
+  <MODO_THREE_MAIN><FILE>C:\Users\jmnas\Documents\Atmel Studio\7.0\Digital_clock\Digital_clock\main.asm</FILE><LINE>247</LINE></MODO_THREE_MAIN>
+  <SHOW_DEC_MIN><FILE>C:\Users\jmnas\Documents\Atmel Studio\7.0\Digital_clock\Digital_clock\main.asm</FILE><LINE>194</LINE></SHOW_DEC_MIN>
+  <GET_MOST_4_BITS><FILE>C:\Users\jmnas\Documents\Atmel Studio\7.0\Digital_clock\Digital_clock\main.asm</FILE><LINE>319</LINE></GET_MOST_4_BITS>
+  <SHOW_UNI_MIN><FILE>C:\Users\jmnas\Documents\Atmel Studio\7.0\Digital_clock\Digital_clock\main.asm</FILE><LINE>207</LINE></SHOW_UNI_MIN>
+  <GET_LAST_4_BITS><FILE>C:\Users\jmnas\Documents\Atmel Studio\7.0\Digital_clock\Digital_clock\main.asm</FILE><LINE>315</LINE></GET_LAST_4_BITS>
+  <SHOW_DEC_SEG><FILE>C:\Users\jmnas\Documents\Atmel Studio\7.0\Digital_clock\Digital_clock\main.asm</FILE><LINE>219</LINE></SHOW_DEC_SEG>
+  <SHOW_UNI_SEG><FILE>C:\Users\jmnas\Documents\Atmel Studio\7.0\Digital_clock\Digital_clock\main.asm</FILE><LINE>232</LINE></SHOW_UNI_SEG>
+  <CONTINUE><FILE>C:\Users\jmnas\Documents\Atmel Studio\7.0\Digital_clock\Digital_clock\main.asm</FILE><LINE>249</LINE></CONTINUE>
+  <DELAY_DINAMIC><FILE>C:\Users\jmnas\Documents\Atmel Studio\7.0\Digital_clock\Digital_clock\main.asm</FILE><LINE>255</LINE></DELAY_DINAMIC>
+  <LOOP_MS><FILE>C:\Users\jmnas\Documents\Atmel Studio\7.0\Digital_clock\Digital_clock\main.asm</FILE><LINE>259</LINE></LOOP_MS>
+  <LOOP_INNER><FILE>C:\Users\jmnas\Documents\Atmel Studio\7.0\Digital_clock\Digital_clock\main.asm</FILE><LINE>263</LINE></LOOP_INNER>
+  <FUNC_BUZZER><FILE>C:\Users\jmnas\Documents\Atmel Studio\7.0\Digital_clock\Digital_clock\main.asm</FILE><LINE>278</LINE></FUNC_BUZZER>
+  <DEBOUNCING><FILE>C:\Users\jmnas\Documents\Atmel Studio\7.0\Digital_clock\Digital_clock\main.asm</FILE><LINE>295</LINE></DEBOUNCING>
+  <RESET_LSN_SECOND><FILE>C:\Users\jmnas\Documents\Atmel Studio\7.0\Digital_clock\Digital_clock\main.asm</FILE><LINE>333</LINE></RESET_LSN_SECOND>
+  <RESET_MSN_SECOND><FILE>C:\Users\jmnas\Documents\Atmel Studio\7.0\Digital_clock\Digital_clock\main.asm</FILE><LINE>343</LINE></RESET_MSN_SECOND>
+  <RESET_LSN_MINUTES><FILE>C:\Users\jmnas\Documents\Atmel Studio\7.0\Digital_clock\Digital_clock\main.asm</FILE><LINE>353</LINE></RESET_LSN_MINUTES>
+  <RESET_MSN_MINUTES><FILE>C:\Users\jmnas\Documents\Atmel Studio\7.0\Digital_clock\Digital_clock\main.asm</FILE><LINE>363</LINE></RESET_MSN_MINUTES>
+  <ADJUST_NIBBLE_TIME><FILE>C:\Users\jmnas\Documents\Atmel Studio\7.0\Digital_clock\Digital_clock\main.asm</FILE><LINE>432</LINE></ADJUST_NIBBLE_TIME>
+  <MOST_NIBBLE><FILE>C:\Users\jmnas\Documents\Atmel Studio\7.0\Digital_clock\Digital_clock\main.asm</FILE><LINE>444</LINE></MOST_NIBBLE>
+  <CLEAN_LAST_LSN_NIBBLE><FILE>C:\Users\jmnas\Documents\Atmel Studio\7.0\Digital_clock\Digital_clock\main.asm</FILE><LINE>440</LINE></CLEAN_LAST_LSN_NIBBLE>
+  <CLEAN_MOST_MSN_NIBBLE><FILE>C:\Users\jmnas\Documents\Atmel Studio\7.0\Digital_clock\Digital_clock\main.asm</FILE><LINE>450</LINE></CLEAN_MOST_MSN_NIBBLE>
+  <NO_RESET_MODE><FILE>C:\Users\jmnas\Documents\Atmel Studio\7.0\Digital_clock\Digital_clock\main.asm</FILE><LINE>466</LINE></NO_RESET_MODE>
+  <MODO_ONE_START><FILE>C:\Users\jmnas\Documents\Atmel Studio\7.0\Digital_clock\Digital_clock\main.asm</FILE><LINE>488</LINE></MODO_ONE_START>
+  <MODO_TWO_START><FILE>C:\Users\jmnas\Documents\Atmel Studio\7.0\Digital_clock\Digital_clock\main.asm</FILE><LINE>494</LINE></MODO_TWO_START>
+  <MODO_THREE_START><FILE>C:\Users\jmnas\Documents\Atmel Studio\7.0\Digital_clock\Digital_clock\main.asm</FILE><LINE>501</LINE></MODO_THREE_START>
+  <RETURN_START><FILE>C:\Users\jmnas\Documents\Atmel Studio\7.0\Digital_clock\Digital_clock\main.asm</FILE><LINE>508</LINE></RETURN_START>
+  <MODO_ONE_RESET><FILE>C:\Users\jmnas\Documents\Atmel Studio\7.0\Digital_clock\Digital_clock\main.asm</FILE><LINE>528</LINE></MODO_ONE_RESET>
+  <MODO_TWO_RESET><FILE>C:\Users\jmnas\Documents\Atmel Studio\7.0\Digital_clock\Digital_clock\main.asm</FILE><LINE>535</LINE></MODO_TWO_RESET>
+  <MODO_THREE_RESET><FILE>C:\Users\jmnas\Documents\Atmel Studio\7.0\Digital_clock\Digital_clock\main.asm</FILE><LINE>542</LINE></MODO_THREE_RESET>
+  <RETURN_RESET><FILE>C:\Users\jmnas\Documents\Atmel Studio\7.0\Digital_clock\Digital_clock\main.asm</FILE><LINE>549</LINE></RETURN_RESET>
  </LABELS>
 </ASSEMBLER_INFO>
