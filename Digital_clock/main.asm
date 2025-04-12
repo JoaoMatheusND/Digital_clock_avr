@@ -117,7 +117,7 @@ INIT:
 
 	;Config timer to modo1
 		#define CLOCK 16.0e6 ;clock speed
-		#define DELAY 0.0001 ;seconds
+		#define DELAY 0.01 ;seconds
 		.equ PRESCALE = 0b100 ;/256 prescale
 		.equ PRESCALE_DIV = 256
 		.equ WGM = 0b0100 ;Waveform generation mode: CTC
@@ -191,63 +191,87 @@ MAIN:
 	breq MODO_THREE_MAIN
 
 	MODO_ONE_MAIN:
-		SHOW_DEC_MIN:
-			mov temp, mm_time
-			rcall GET_MOST_4_BITS ; Get the first 4 bits of the register (unit of seconds)
-			swap temp
-			lsl temp
 
-			out PORTB, temp ; Send the data to the display (unit of seconds)
+		; Show the minites timer
+		mov temp, mm_time  ; Load the reg that contem the minutes of the timer
+		rcall SHOW_DEC_MIN ; Show the first display
+		rcall SHOW_UNI_MIN ; Show the second display
 
-			ldi temp, display1
-			out PORTC, temp ; Set the display to show the seconds
-			;jmp CONTINUE
+		; Show the seconds timer
+		mov temp, ss_time  ; Load the reg that contem the seconds of the timer
+		rcall SHOW_DEC_SEG ; Show the thirt display
+		rcall SHOW_UNI_SEG ; Show the fourth display
 
-
-		SHOW_UNI_MIN:
-			mov temp, mm_time
-			rcall GET_LAST_4_BITS ; Get the first 4 bits of the register (unit of seconds)
-			lsl temp
-
-			out PORTB, temp ; Send the data to the display (unit of seconds)
-
-			ldi temp, display2
-			out PORTC, temp ; Set the display to show the seconds
-
-
-
-		SHOW_DEC_SEG:
-			mov temp, ss_time
-			rcall GET_MOST_4_BITS ; Get the first 4 bits of the register (unit of seconds)
-			swap temp
-			lsl temp
-
-			out PORTB, temp ; Send the data to the display (unit of seconds)
-
-			ldi temp, display3
-			out PORTC, temp ; Set the display to show the seconds
-	
-
-
-		SHOW_UNI_SEG:
-			mov temp, ss_time
-			rcall GET_LAST_4_BITS ; Get the first 4 bits of the register (unit of seconds)
-			lsl temp
-
-			out PORTB, temp ; Send the data to the display (unit of seconds)
-
-			ldi temp, display4
-			out PORTC, temp ; Set the display to show the seconds
-			jmp CONTINUE
-
+		jmp CONTINUE
 
 
 	MODO_TWO_MAIN:
 
+		; Show the minutes crono
+		mov temp, mm_crono ; Load the reg that contem the minutes of the cronometro
+		rcall SHOW_DEC_MIN ; Show the first display
+		rcall SHOW_UNI_MIN ; Show the second display
+
+		; Show the seconds crono
+		mov temp, ss_crono ; Load the reg that contem the seconds of the cronometro
+		rcall SHOW_DEC_SEG ; Show the thirt display
+		rcall SHOW_UNI_SEG ; Show the fourth display
+
+		jmp CONTINUE
+
 	MODO_THREE_MAIN:
+		jmp CONTINUE
 
 	CONTINUE:
 		rjmp MAIN ; Infinite loop
+
+SHOW_DEC_MIN:
+	rcall GET_MOST_4_BITS ; Get the first 4 bits of the register (unit of seconds)
+	swap temp
+	lsl temp
+
+	out PORTB, temp ; Send the data to the display (unit of seconds)
+
+	ldi temp, display1
+	out PORTC, temp ; Set the display to show the seconds
+	ret
+
+
+SHOW_UNI_MIN:
+	rcall GET_LAST_4_BITS ; Get the first 4 bits of the register (unit of seconds)
+	lsl temp
+
+	out PORTB, temp ; Send the data to the display (unit of seconds)
+
+	ldi temp, display2
+	out PORTC, temp ; Set the display to show the seconds
+	ret
+
+
+
+SHOW_DEC_SEG:
+	rcall GET_MOST_4_BITS ; Get the first 4 bits of the register (unit of seconds)
+	swap temp
+	lsl temp
+
+	out PORTB, temp ; Send the data to the display (unit of seconds)
+
+	ldi temp, display3
+	out PORTC, temp ; Set the display to show the seconds
+	ret
+
+
+
+SHOW_UNI_SEG:
+	rcall GET_LAST_4_BITS ; Get the first 4 bits of the register (unit of seconds)
+	lsl temp
+
+	out PORTB, temp ; Send the data to the display (unit of seconds)
+
+	ldi temp, display4
+	out PORTC, temp ; Set the display to show the seconds
+	jmp CONTINUE
+	ret
 
 ;Recebe o argumento da quantidade de delay em ms por r25 (definido por temp)
 ; Espera (delay) milissegundos (valor entre 1 e 255)
@@ -281,12 +305,12 @@ FUNC_BUZZER:
     ldi temp, buzzer
 	OUT PORTB, temp
 
-    ldi delay, 90      ; Await 90ms 
+    ldi delay, 90 ; Await 90ms 
 	rcall DELAY_DINAMIC
 
-    in   temp, PORTB           ; Lê PORTB
+    in   temp, PORTB      ; Lê PORTB
     andi temp, ~(buzzer)  ; Limpa o bit do buzzer (inverte e faz AND)
-    out  PORTB, temp           ; Escreve de volta
+    out  PORTB, temp      ; Escreve de volta
 
 
     sei ; Active the global interruptcion 
@@ -321,6 +345,13 @@ GET_MOST_4_BITS:
 	ret
 
 UPDATE_TIME:
+	mov temp, flag
+	cpi temp, 0x00
+	breq BREAK_CRONO ; If the flag is 1, go to update the crono
+	rcall UPDATE_CRONO
+
+	BREAK_CRONO:
+
 	inc ss_time
 	
 	mov temp, ss_time
@@ -375,44 +406,44 @@ UPDATE_CRONO:
 	rcall GET_LAST_4_BITS
 
 	cpi temp, 0x0a ; Check if the second is 10
-	breq RESET_LSN_SECOND ; If the second is less than 10, just return
-	reti
+	breq RESET_LSN_SECOND_CRONO ; If the second is less than 10, just return
+	ret
 
-	RESET_LSN_SECOND:
+	RESET_LSN_SECOND_CRONO:
 		andi ss_crono, 0xf0
 		swap ss_crono
 		inc ss_crono
 		swap ss_crono
 
 	cpi ss_crono, 0x60
-	breq RESET_MSN_SECOND
-	reti
+	breq RESET_MSN_SECOND_CRONO
+	ret
 
-	RESET_MSN_SECOND:
+	RESET_MSN_SECOND_CRONO:
 		clr ss_crono ; Reset the second to 00
 
 	inc mm_crono
 	mov temp, mm_crono
 	rcall GET_LAST_4_BITS
 	cpi temp, 0x0a 
-	breq RESET_LSN_MINUTES
-	RETI
+	breq RESET_LSN_MINUTES_CRONO
+	ret
 
-	RESET_LSN_MINUTES:
+	RESET_LSN_MINUTES_CRONO:
 		andi mm_crono, 0xf0
 		swap mm_crono
 		inc mm_crono
 		swap mm_crono
 
 	cpi mm_crono, 0x60
-	breq RESET_MSN_MINUTES
-	reti
+	breq RESET_MSN_MINUTES_CRONO
+	ret
 
-	RESET_MSN_MINUTES:
+	RESET_MSN_MINUTES_CRONO:
 		clr mm_crono ; Reset the minutes to 0
 		clr ss_crono ; Reset the segunds to 0
 		
-	reti
+	ret
 
 ; Soma 1 em um nibble especifico de um reg que é passado por temp
 ADJUST_NIBBLE_TIME:
@@ -438,6 +469,8 @@ ADJUST_NIBBLE_TIME:
 			ret	
 
 MODO:
+	rcall DEBOUNCING
+
 	push stack
 	in stack, SREG
 	push stack
@@ -445,9 +478,23 @@ MODO:
 	rcall FUNC_BUZZER ; Even that the state is chenage the buzzer is play
     
 	inc modo_status
-	cpi modo_status, 0x03
-	brne NO_RESET_MODE
-	clr modo_status
+
+	cpi modo_status, 0x01
+	brne RESET_DISPLAY_CRONO
+
+	cpi modo_status, 0x02
+	breq TURN_TIMER_OFF
+
+	ldi modo_status, 0x00
+	jmp NO_RESET_MODE
+
+	RESET_DISPLAY_CRONO:
+		clr mm_crono
+		clr ss_crono
+		jmp NO_RESET_MODE
+
+	TURN_TIMER_OFF:
+		;TO DO: desativar a interrupção de timer
 		
 	NO_RESET_MODE:
 	
@@ -458,6 +505,8 @@ MODO:
 	reti
 
 START:
+	rcall DEBOUNCING
+
 	push stack
 	in stack, SREG
 	push stack
@@ -472,15 +521,11 @@ START:
 	breq MODO_THREE_START
 
 	MODO_ONE_START:
-		ldi temp, 0x1
-		lsl temp
-		out PORTB, temp
+		; to do nothing 'cause the fist modo dont have function in start
 		jmp RETURN_START
 
 	MODO_TWO_START:
-		ldi temp, 0x2
-		lsl temp
-		out PORTB, temp
+		com flag
 		jmp RETURN_START
 
 
@@ -498,6 +543,8 @@ START:
 		reti
 
 RESET:
+	rcall DEBOUNCING
+
 	push stack
 	in stack, SREG
 	push stack
@@ -512,23 +559,22 @@ RESET:
 	breq MODO_THREE_RESET
 
 	MODO_ONE_RESET:
-		ldi temp, 0xa
-		lsl temp
-		out PORTB, temp
+		; to do nothing 'cause the fist modo dont have function in reset
 		jmp RETURN_RESET
-		;to do: to do nothing
+
 
 	MODO_TWO_RESET:
-		ldi temp, 0xb
-		lsl temp
-		out PORTB, temp
+		mov temp, flag
+		cpi temp, 0xff
+		breq BREAK_RESET ; just reset the crono if the crono is stoped
+		clr mm_crono 
+		clr ss_crono
+
+		BREAK_RESET:
 		jmp RETURN_RESET
 		;to do: implement the reset of cronomento
 
 	MODO_THREE_RESET:
-		ldi temp, 0xc
-		lsl temp
-		out PORTB, temp
 		jmp RETURN_RESET
 		;to do: implement the incress of hour (config)
 
