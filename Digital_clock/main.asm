@@ -38,7 +38,7 @@ jmp RESET ;Interruption PCINT0 - button reset
 /* Set the varibles and registes defines to use at the code */ 
 ;DEFINES
 .def stack		   = r5  ; Exclusive use for stack SREG config
-.def flag	       = r6  ; Exclusive use to define if the nibble reg to inc is xxxx0000 or 00000xxxx 
+.def flag	       = r27  ; Exclusive use to define if the nibble reg to inc is xxxx0000 or 00000xxxx 
 .def temp          = r16 ; Used only with temporary data
 .def display_hour  = r17 ; Exclusive use for modes 1 and 3 (show and adjust time for display)
 .def display_crono = r18 ; Exclusive use for mode 2 (show local cronometro)
@@ -46,10 +46,11 @@ jmp RESET ;Interruption PCINT0 - button reset
 .def ss_time	   = r23 ; Used to represent the seconds of mode 1
 .def mm_crono	   = r24 ; Used to represent the minutes of mode 2
 .def ss_crono	   = r25 ; Used to represent the seocnds of mode 2
-.def hour  		   = r19
+.def blink  	   = r19 ; Used to represent the what display will be blink 
 .def crono 		   = r20
 .def delay 		   = r21
 .def modo_status   = r26 ; Used to represent the mode of the clock
+
 
 ;.SET
 
@@ -101,7 +102,7 @@ INIT:
 		clr ss_time
 		clr mm_crono
 		clr ss_crono
-		clr hour 
+		clr blink 
 		clr crono 
 		clr delay
 		clr modo_status
@@ -117,7 +118,7 @@ INIT:
 
 	;Config timer to modo1
 		#define CLOCK 16.0e6 ;clock speed
-		#define DELAY 0.01 ;seconds
+		#define DELAY 0.1 ;seconds
 		.equ PRESCALE = 0b100 ;/256 prescale
 		.equ PRESCALE_DIV = 256
 		.equ WGM = 0b0100 ;Waveform generation mode: CTC
@@ -194,13 +195,11 @@ MAIN:
 
 		; Show the minites timer
 		mov temp, mm_time  ; Load the reg that contem the minutes of the timer
-		nop
 		rcall SHOW_DEC_MIN ; Show the first display
 		rcall SHOW_UNI_MIN ; Show the second display
 
 		; Show the seconds timer
 		mov temp, ss_time  ; Load the reg that contem the seconds of the timer
-		nop
 		rcall SHOW_DEC_SEG ; Show the thirt display
 		rcall SHOW_UNI_SEG ; Show the fourth display
 
@@ -222,10 +221,91 @@ MAIN:
 		jmp CONTINUE
 
 	MODO_THREE_MAIN:
-		jmp CONTINUE
+		ldi delay, 0x01 ; Set the delay to 1ms
+
+		cpi blink, 0x00
+		breq BLINK_FOUR_DISPLAY ; blink the uni of the seconds display
+
+		cpi blink, 0x01
+		breq BLINK_THIRD_DISPLAY ; blink the dezena of the seconds display
+
+		cpi blink, 0x02
+		breq BLINK_SECOND_DISPLAY ; blink the uni of the minutes display
+
+		cpi blink, 0x03
+		breq BLINK_FIRST_DISPLAY ; blink the dezena of the minutes display
+
+		BLINK_FOUR_DISPLAY:
+			mov temp, mm_time ; Load the reg that contem the minutes of the cronometro
+			rcall SHOW_DEC_MIN ; Show the first display
+			rcall SHOW_UNI_MIN ; Show the second display
+
+			; Show the seconds crono
+			mov temp, ss_time ; Load the reg that contem the seconds of the cronometro
+			rcall SHOW_DEC_SEG ; Show the thirt display
+
+			ldi temp, 0x00
+			out PORTB, temp ; Set the display to 0 to turn off the display
+			rcall SHOW_UNI_SEG ; Show the fourth display
+			rcall DELAY_DINAMIC ; Call the delay function to wait 1ms
+
+			jmp CONTINUE
+
+
+		BLINK_THIRD_DISPLAY:
+			mov temp, mm_time ; Load the reg that contem the minutes of the cronometro
+			rcall SHOW_DEC_MIN ; Show the first display
+			rcall SHOW_UNI_MIN ; Show the second display
+
+			; Show the seconds crono
+			mov temp, ss_time ; Load the reg that contem the seconds of the cronometro
+			rcall SHOW_UNI_SEG ; Show the fourth display
+
+			ldi temp, 0x00
+			out PORTB, temp ; Set the display to 0 to turn off the display
+			rcall SHOW_DEC_SEG ; Show the thirt display
+			rcall DELAY_DINAMIC ; Call the delay function to wait 1ms
+
+			jmp CONTINUE
+
+		BLINK_SECOND_DISPLAY:
+			mov temp, ss_time ; Load the reg that contem the minutes of the cronometro
+			rcall SHOW_DEC_SEG ; Show the first display
+			rcall SHOW_UNI_SEG ; Show the second display
+
+			; Show the seconds crono
+			mov temp, mm_time ; Load the reg that contem the seconds of the cronometro
+			rcall SHOW_DEC_MIN ; Show the thirt display
+
+			ldi temp, 0x00
+			out PORTB, temp ; Set the display to 0 to turn off the display
+			rcall SHOW_UNI_MIN ; Show the fourth display
+			rcall DELAY_DINAMIC ; Call the delay function to wait 1ms
+
+			jmp CONTINUE
+			
+
+		BLINK_FIRST_DISPLAY:
+			mov temp, ss_time ; Load the reg that contem the minutes of the cronometro
+			rcall SHOW_DEC_SEG ; Show the first display
+			rcall SHOW_UNI_SEG ; Show the second display
+
+			; Show the seconds crono
+			mov temp, mm_time ; Load the reg that contem the seconds of the cronometro
+			rcall SHOW_UNI_MIN ; Show the fourth display
+
+			ldi temp, 0x00
+			out PORTB, temp ; Set the display to 0 to turn off the display
+			rcall SHOW_DEC_MIN ; Show the thirt display
+			rcall DELAY_DINAMIC ; Call the delay function to wait 1ms
+
+			jmp CONTINUE
+			
 
 	CONTINUE:
 		rjmp MAIN ; Infinite loop
+
+    
 
 SHOW_DEC_MIN:
 	push temp
@@ -233,10 +313,16 @@ SHOW_DEC_MIN:
 	swap temp
 	lsl temp
 
+	cli
 	out PORTB, temp ; Send the data to the display (unit of seconds)
+	sei
 
 	ldi temp, display1
+
+	cli
 	out PORTC, temp ; Set the display to show the seconds
+	sei
+
 	pop temp
 	ret
 
@@ -246,10 +332,16 @@ SHOW_UNI_MIN:
 	rcall GET_LAST_4_BITS ; Get the first 4 bits of the register (unit of seconds)
 	lsl temp
 
+	cli
 	out PORTB, temp ; Send the data to the display (unit of seconds)
+	sei
 
 	ldi temp, display2
+
+	cli
 	out PORTC, temp ; Set the display to show the seconds
+	sei
+
 	pop temp
 	ret
 
@@ -261,10 +353,16 @@ SHOW_DEC_SEG:
 	swap temp
 	lsl temp
 
+	cli
 	out PORTB, temp ; Send the data to the display (unit of seconds)
+	sei
 
 	ldi temp, display3
+
+	cli
 	out PORTC, temp ; Set the display to show the seconds
+	sei
+
 	pop temp
 	ret
 
@@ -275,10 +373,16 @@ SHOW_UNI_SEG:
 	rcall GET_LAST_4_BITS ; Get the first 4 bits of the register (unit of seconds)
 	lsl temp
 
+	cli
 	out PORTB, temp ; Send the data to the display (unit of seconds)
+	sei
 
 	ldi temp, display4
+
+	cli
 	out PORTC, temp ; Set the display to show the seconds
+	sei
+
 	pop temp
 	ret
 
@@ -309,6 +413,8 @@ LOOP_INNER:
 
 
 FUNC_BUZZER:
+	push temp
+
     cli ; Critical section - turn the global interruptcion off 
 
     ldi temp, buzzer
@@ -323,6 +429,7 @@ FUNC_BUZZER:
 
 
     sei ; Active the global interruptcion 
+	pop temp
     ret
 
 DEBOUNCING:
@@ -403,7 +510,7 @@ UPDATE_TIME:
 	RESET_MSN_MINUTES:
 		clr mm_time ; Reset the minutes to 0
 		clr ss_time ; Reset the segunds to 0
-		
+	
 	reti
 
 
@@ -454,29 +561,6 @@ UPDATE_CRONO:
 		
 	ret
 
-; Soma 1 em um nibble especifico de um reg que é passado por temp
-ADJUST_NIBBLE_TIME:
-	ldi r31, 0x01
-	cp flag, r31 ; Check if the nibble is the last 4 bits
-	breq MOST_NIBBLE ; If the nibble is the last 4 bits, go to reset the last 4 bits of the second
-	inc temp ; Incress the nibble of the register
-	cpi temp, 0x0a ; Check if the nibble is 10
-	breq CLEAN_LAST_LSN_NIBBLE ; If the nibble is 10, go to reset the last 4 bits of the second
-	ret
-	CLEAN_LAST_LSN_NIBBLE:
-		andi temp, 0b11110000 ; Reset the last 4 bits of the register
-		ret
-
-	MOST_NIBBLE:
-		ldi r31, sum_msn
-		add temp, r31 ; Add 1 to the most significant nibble
-		cpi temp, 0x50 ; Check if the nibble is 10
-		breq CLEAN_MOST_MSN_NIBBLE ; If the nibble is 10, go to reset the last 4 bits of the second
-		ret
-		CLEAN_MOST_MSN_NIBBLE:
-			andi temp, 0b00001111 ; Reset the most significant nibble of the register
-			ret	
-
 MODO:
     rcall DEBOUNCING
 
@@ -515,6 +599,7 @@ RESET_DISPLAY_CRONO:
     rjmp NO_RESET_MODE
 
 TURN_TIMER_OFF:
+	clr blink
     ; Desliga o timer zerando CS12:CS10
     ;ldi temp, TCCR1B
     ;andi temp, 0b11111000 ; Zera CS12, CS11, CS10
@@ -533,6 +618,8 @@ START:
 	in stack, SREG
 	push stack
 
+	push temp
+
 	cpi modo_status, 0x00
 	breq MODO_ONE_START	
 
@@ -547,18 +634,24 @@ START:
 		jmp RETURN_START
 
 	MODO_TWO_START:
+		rcall FUNC_BUZZER ; Call the buzzer function to sound the buzzer
 		com flag
 		jmp RETURN_START
 
 
 	MODO_THREE_START:
-		ldi temp, 0x3
-		lsl temp
-		out PORTB, temp
+		inc blink
+
+		cpi blink, 0x04 ; Check if the blink is 4
+		breq RESET_BLINK ; If the blink is 4, go to reset the blink
 		jmp RETURN_START
-		
+
+		RESET_BLINK:
+			ldi blink, 0x00
 
 	RETURN_START:
+		pop temp
+		
 		pop stack
 		out SREG, stack
 		pop stack
@@ -570,6 +663,8 @@ RESET:
 	push stack
 	in stack, SREG
 	push stack
+
+	push temp
 
 	cpi modo_status, 0
 	breq MODO_ONE_RESET
@@ -586,6 +681,7 @@ RESET:
 
 
 	MODO_TWO_RESET:
+		rcall FUNC_BUZZER ; Call the buzzer function to sound the buzzer
 		mov temp, flag
 		cpi temp, 0xff
 		breq BREAK_RESET ; just reset the crono if the crono is stoped
@@ -597,10 +693,67 @@ RESET:
 		;to do: implement the reset of cronomento
 
 	MODO_THREE_RESET:
-		jmp RETURN_RESET
-		;to do: implement the incress of hour (config)
+		cpi blink, 0x00
+		breq SUM_FOUR_DISPLAY ; blink the uni of the seconds display
+
+		cpi blink, 0x01
+		breq SUM_THIRD_DISPLAY ; blink the dezena of the seconds display
+
+		cpi blink, 0x02
+		breq SUM_SECOND_DISPLAY ; blink the uni of the minutes display
+
+		cpi blink, 0x03
+		breq SUM_FIRST_DISPLAY ; blink the dezena of the minutes display
+
+		SUM_FOUR_DISPLAY:
+			mov temp, ss_time
+			rcall GET_LAST_4_BITS ; Get the first 4 bits of the register (unit of seconds)
+			cpi temp, 0x0a
+			breq CLEAR_UNI_SEG 
+			jmp RETURN_RESET
+			CLEAR_UNI_SEG:
+				andi ss_time, 0b11110000 ; Reset the last 4 bits of the register
+				jmp RETURN_RESET
+
+		SUM_THIRD_DISPLAY:
+			mov temp, ss_time
+			swap temp
+			rcall GET_LAST_4_BITS ; Get the first 4 bits of the register (unit of seconds)
+			cpi temp, 0x0a
+			breq CLEAR_DEC_SEG 
+			jmp RETURN_RESET
+			CLEAR_DEC_SEG:
+				swap ss_time
+				andi ss_time, 0b11110000 ; Reset the last 4 bits of the register
+				swap ss_time
+				jmp RETURN_RESET
+
+		SUM_SECOND_DISPLAY:
+			mov temp, mm_time
+			rcall GET_LAST_4_BITS ; Get the first 4 bits of the register (unit of seconds)
+			cpi temp, 0x0a
+			breq CLEAR_UNI_MIN
+			jmp RETURN_RESET
+			CLEAR_UNI_MIN:
+				andi mm_time, 0b11110000 ; Reset the last 4 bits of the register
+				jmp RETURN_RESET
+
+		SUM_FIRST_DISPLAY:
+			mov temp, mm_time
+			swap temp
+			rcall GET_LAST_4_BITS ; Get the first 4 bits of the register (unit of seconds)
+			cpi temp, 0x0a
+			breq CLEAR_DEC_MIN
+			jmp RETURN_RESET
+			CLEAR_DEC_MIN:
+				swap mm_time
+				andi mm_time, 0b11110000 ; Reset the last 4 bits of the register
+				swap mm_time
+				jmp RETURN_RESET
 
 	RETURN_RESET:
+		pop temp
+
 		pop stack		
 		out SREG, stack
 		pop stack
