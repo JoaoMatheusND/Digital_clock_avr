@@ -238,11 +238,14 @@ MAIN:
 		BLINK_FOUR_DISPLAY:
 			mov temp, mm_time ; Load the reg that contem the minutes of the cronometro
 			rcall SHOW_DEC_MIN ; Show the first display
+			rcall DELAY_DINAMIC 
 			rcall SHOW_UNI_MIN ; Show the second display
+			rcall DELAY_DINAMIC 
 
 			; Show the seconds crono
 			mov temp, ss_time ; Load the reg that contem the seconds of the cronometro
 			rcall SHOW_DEC_SEG ; Show the thirt display
+			rcall DELAY_DINAMIC 
 
 			ldi temp, 0x00
 			out PORTB, temp ; Set the display to 0 to turn off the display
@@ -255,11 +258,14 @@ MAIN:
 		BLINK_THIRD_DISPLAY:
 			mov temp, mm_time ; Load the reg that contem the minutes of the cronometro
 			rcall SHOW_DEC_MIN ; Show the first display
+			rcall DELAY_DINAMIC 
 			rcall SHOW_UNI_MIN ; Show the second display
+			rcall DELAY_DINAMIC 
 
 			; Show the seconds crono
 			mov temp, ss_time ; Load the reg that contem the seconds of the cronometro
 			rcall SHOW_UNI_SEG ; Show the fourth display
+			rcall DELAY_DINAMIC 
 
 			ldi temp, 0x00
 			out PORTB, temp ; Set the display to 0 to turn off the display
@@ -271,11 +277,14 @@ MAIN:
 		BLINK_SECOND_DISPLAY:
 			mov temp, ss_time ; Load the reg that contem the minutes of the cronometro
 			rcall SHOW_DEC_SEG ; Show the first display
+			rcall DELAY_DINAMIC 
 			rcall SHOW_UNI_SEG ; Show the second display
+			rcall DELAY_DINAMIC 
 
 			; Show the seconds crono
 			mov temp, mm_time ; Load the reg that contem the seconds of the cronometro
 			rcall SHOW_DEC_MIN ; Show the thirt display
+			rcall DELAY_DINAMIC 
 
 			ldi temp, 0x00
 			out PORTB, temp ; Set the display to 0 to turn off the display
@@ -288,11 +297,14 @@ MAIN:
 		BLINK_FIRST_DISPLAY:
 			mov temp, ss_time ; Load the reg that contem the minutes of the cronometro
 			rcall SHOW_DEC_SEG ; Show the first display
+			rcall DELAY_DINAMIC 
 			rcall SHOW_UNI_SEG ; Show the second display
+			rcall DELAY_DINAMIC 
 
 			; Show the seconds crono
 			mov temp, mm_time ; Load the reg that contem the seconds of the cronometro
 			rcall SHOW_UNI_MIN ; Show the fourth display
+			rcall DELAY_DINAMIC 
 
 			ldi temp, 0x00
 			out PORTB, temp ; Set the display to 0 to turn off the display
@@ -612,11 +624,12 @@ NO_RESET_MODE:
     reti
 
 START:
-	rcall DEBOUNCING
 
 	push stack
 	in stack, SREG
 	push stack
+
+	rcall DEBOUNCING
 
 	push temp
 
@@ -658,11 +671,12 @@ START:
 		reti
 
 RESET:
-	rcall DEBOUNCING
 
 	push stack
 	in stack, SREG
 	push stack
+
+	rcall DEBOUNCING
 
 	push temp
 
