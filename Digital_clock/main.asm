@@ -181,24 +181,26 @@ INIT:
 	sei
 
 MAIN:
-	cpi modo_status, 0
+	cpi modo_status, 0x00
 	breq MODO_ONE_MAIN
 
-	cpi modo_status, 1
+	cpi modo_status, 0x01
 	breq MODO_TWO_MAIN
 
-	cpi modo_status, 2
+	cpi modo_status, 0x02
 	breq MODO_THREE_MAIN
 
 	MODO_ONE_MAIN:
 
 		; Show the minites timer
 		mov temp, mm_time  ; Load the reg that contem the minutes of the timer
+		nop
 		rcall SHOW_DEC_MIN ; Show the first display
 		rcall SHOW_UNI_MIN ; Show the second display
 
 		; Show the seconds timer
 		mov temp, ss_time  ; Load the reg that contem the seconds of the timer
+		nop
 		rcall SHOW_DEC_SEG ; Show the thirt display
 		rcall SHOW_UNI_SEG ; Show the fourth display
 
@@ -226,6 +228,7 @@ MAIN:
 		rjmp MAIN ; Infinite loop
 
 SHOW_DEC_MIN:
+	push temp
 	rcall GET_MOST_4_BITS ; Get the first 4 bits of the register (unit of seconds)
 	swap temp
 	lsl temp
@@ -234,10 +237,12 @@ SHOW_DEC_MIN:
 
 	ldi temp, display1
 	out PORTC, temp ; Set the display to show the seconds
+	pop temp
 	ret
 
 
 SHOW_UNI_MIN:
+	push temp
 	rcall GET_LAST_4_BITS ; Get the first 4 bits of the register (unit of seconds)
 	lsl temp
 
@@ -245,11 +250,13 @@ SHOW_UNI_MIN:
 
 	ldi temp, display2
 	out PORTC, temp ; Set the display to show the seconds
+	pop temp
 	ret
 
 
 
 SHOW_DEC_SEG:
+	push temp
 	rcall GET_MOST_4_BITS ; Get the first 4 bits of the register (unit of seconds)
 	swap temp
 	lsl temp
@@ -258,11 +265,13 @@ SHOW_DEC_SEG:
 
 	ldi temp, display3
 	out PORTC, temp ; Set the display to show the seconds
+	pop temp
 	ret
 
 
 
 SHOW_UNI_SEG:
+	push temp
 	rcall GET_LAST_4_BITS ; Get the first 4 bits of the register (unit of seconds)
 	lsl temp
 
@@ -270,7 +279,7 @@ SHOW_UNI_SEG:
 
 	ldi temp, display4
 	out PORTC, temp ; Set the display to show the seconds
-	jmp CONTINUE
+	pop temp
 	ret
 
 ;Recebe o argumento da quantidade de delay em ms por r25 (definido por temp)
