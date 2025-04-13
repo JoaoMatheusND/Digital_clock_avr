@@ -572,21 +572,21 @@ MODO:
     ; Incrementa o modo
     inc modo_status
 
-    cpi modo_status, 0x00
-    breq TURN_TIMER_ON
+    ; cpi modo_status, 0x00
+    ; breq TURN_TIMER_ON
 
     cpi modo_status, 0x01
     breq RESET_DISPLAY_CRONO
 
     cpi modo_status, 0x02
-    breq TURN_TIMER_OFF
+    breq TURN_TIMER_OFF_BLINK
 
     ; Se passou de 2, reseta pra 0
     cpi modo_status, 0x03
     brlo NO_RESET_MODE
 
     ldi modo_status, 0x00
-    rjmp NO_RESET_MODE
+    rjmp TURN_TIMER_ON
 
 TURN_TIMER_ON:
     ldi temp, ((WGM>>2)<<WGM12)|(PRESCALE<<CS10)
@@ -598,12 +598,12 @@ RESET_DISPLAY_CRONO:
     clr ss_crono
     rjmp NO_RESET_MODE
 
-TURN_TIMER_OFF:
+TURN_TIMER_OFF_BLINK:
 	clr blink
     ; Desliga o timer zerando CS12:CS10
-    ;ldi temp, TCCR1B
-    ;andi temp, 0b11111000 ; Zera CS12, CS11, CS10
-    ;sts TCCR1B, temp
+    ldi temp, TCCR1B
+    andi temp, 0b11111000 ; Zera CS12, CS11, CS10
+    sts TCCR1B, temp
     rjmp NO_RESET_MODE
 
 NO_RESET_MODE:
