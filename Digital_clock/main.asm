@@ -478,40 +478,53 @@ ADJUST_NIBBLE_TIME:
 			ret	
 
 MODO:
-	rcall DEBOUNCING
+    rcall DEBOUNCING
 
-	push stack
-	in stack, SREG
-	push stack
-	
-	rcall FUNC_BUZZER ; Even that the state is chenage the buzzer is play
-    
-	inc modo_status
+    in stack, SREG
+    push stack
 
-	cpi modo_status, 0x01
-	brne RESET_DISPLAY_CRONO
+    rcall FUNC_BUZZER
 
-	cpi modo_status, 0x02
-	breq TURN_TIMER_OFF
+    ; Incrementa o modo
+    inc modo_status
 
-	ldi modo_status, 0x00
-	jmp NO_RESET_MODE
+    cpi modo_status, 0x00
+    breq TURN_TIMER_ON
 
-	RESET_DISPLAY_CRONO:
-		clr mm_crono
-		clr ss_crono
-		jmp NO_RESET_MODE
+    cpi modo_status, 0x01
+    breq RESET_DISPLAY_CRONO
 
-	TURN_TIMER_OFF:
-		;TO DO: desativar a interrupção de timer
-		
-	NO_RESET_MODE:
-	
-	pop stack
-	out SREG, stack
-	pop stack
+    cpi modo_status, 0x02
+    breq TURN_TIMER_OFF
 
-	reti
+    ; Se passou de 2, reseta pra 0
+    cpi modo_status, 0x03
+    brlo NO_RESET_MODE
+
+    ldi modo_status, 0x00
+    rjmp NO_RESET_MODE
+
+TURN_TIMER_ON:
+    ldi temp, ((WGM>>2)<<WGM12)|(PRESCALE<<CS10)
+    sts TCCR1B, temp ; Inicia o timer
+    rjmp NO_RESET_MODE
+
+RESET_DISPLAY_CRONO:
+    clr mm_crono
+    clr ss_crono
+    rjmp NO_RESET_MODE
+
+TURN_TIMER_OFF:
+    ; Desliga o timer zerando CS12:CS10
+    ;ldi temp, TCCR1B
+    ;andi temp, 0b11111000 ; Zera CS12, CS11, CS10
+    ;sts TCCR1B, temp
+    rjmp NO_RESET_MODE
+
+NO_RESET_MODE:
+    pop stack
+    out SREG, stack
+    reti
 
 START:
 	rcall DEBOUNCING
