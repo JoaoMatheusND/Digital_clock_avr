@@ -38,21 +38,21 @@ jmp RESET ;Interruption PCINT0 - button reset
 /* Set the varibles and registes defines to use at the code */ 
 ;DEFINES
 .def stack		   = r5  ; Exclusive use for stack SREG config
-.def flag	       = r27  ; Exclusive use to define if the nibble reg to inc is xxxx0000 or 00000xxxx 
 .def temp          = r16 ; Used only with temporary data
+.def byte_val      = r17     ; Byte a ser convertido para ASCII decimal
+.def ascii_H	   = r18      ; Digito ASCII das dezenas
+.def blink  	   = r19 ; Used to represent the what display will be blink 
+.def crono 		   = r20
+.def delay 		   = r21
 .def mm_time	   = r22 ; Used to represent the minutes of mode 1
 .def ss_time	   = r23 ; Used to represent the seconds of mode 1
 .def mm_crono	   = r24 ; Used to represent the minutes of mode 2
 .def ss_crono	   = r25 ; Used to represent the seocnds of mode 2
-.def blink  	   = r19 ; Used to represent the what display will be blink 
-.def crono 		   = r20
-.def delay 		   = r21
 .def modo_status   = r26 ; Used to represent the mode of the clock
-.def temp2 = r28        ; Variavel temporaria
-.def tx_byte = r29      ; Byte a ser transmitido pela serial
-.def byte_val = r17     ; Byte a ser convertido para ASCII decimal
-.def ascii_H = r18      ; Digito ASCII das dezenas
-.def ascii_L = r27      ; Digito ASCII das unidades
+.def flag	       = r27  ; Exclusive use to define if the nibble reg to inc is xxxx0000 or 00000xxxx 
+.def ascii_L	   = r27      ; Digito ASCII das unidades
+.def temp2         = r28        ; Variavel temporaria
+.def tx_byte	   = r29      ; Byte a ser transmitido pela serial
 
 
 ;.SET
@@ -130,7 +130,7 @@ INIT:
 
 	;Config timer to modo1
 		#define CLOCK 16.0e6 ;clock speed
-		#define DELAY 0.1 ;seconds
+		#define DELAY .1 ;seconds
 		.equ PRESCALE = 0b100 ;/256 prescale
 		.equ PRESCALE_DIV = 256
 		.equ WGM = 0b0100 ;Waveform generation mode: CTC
@@ -236,13 +236,13 @@ MAIN:
 		ldi delay, 150 ; Set the delay to 10
 
 		cpi blink, 0x00
-		breq BLINK_FOURTH_DISPLAY ; blink the uni of the seconds display
+		breq BLINK_FOURTH_DISPLAY ; blink the unit of the seconds display
 
 		cpi blink, 0x01
 		breq BLINK_THIRD_DISPLAY ; blink the dezena of the seconds display
 
 		cpi blink, 0x02
-		breq BLINK_SECOND_DISPLAY ; blink the uni of the minutes display
+		breq BLINK_SECOND_DISPLAY ; blink the unit of the minutes display
 
 		cpi blink, 0x03
 		breq BLINK_FIRST_DISPLAY ; blink the dezena of the minutes display
@@ -715,10 +715,11 @@ RESET:
 			inc temp
 			rcall GET_LAST_4_BITS ; Get the first 4 bits of the register (unit of seconds)
 			cpi temp, 0x0a
-			breq CLEAR_UNI_SEG 
+			breq CLEAR_UNI_SEG
 			inc ss_time
 			jmp RETURN_RESET
 			CLEAR_UNI_SEG:
+				rcall FUNC_BUZZER 
 				andi ss_time, 0x0f ; Reset the last 4 bits of the register
 				jmp RETURN_RESET
 
@@ -746,22 +747,24 @@ RESET:
 			inc mm_time
 			jmp RETURN_RESET
 			CLEAR_UNI_MIN:
-				andi mm_time, 0x0f ; Reset the last 4 bits of the register
+				;rcall FUNC_BUZZER
+				andi mm_time, 0xf0 ; guardamos somente a parte baixa, ou seja, a unidade 0
 				jmp RETURN_RESET
+
 
 		SUM_FIRST_DISPLAY:
 			mov temp, mm_time
 			swap temp
 			inc temp
 			rcall GET_LAST_4_BITS ; Get the first 4 bits of the register (unit of seconds)
-			cpi temp, 0x0a
+			cpi temp, 0x06 ;(se temp = 0d6, reseta!)
 			breq CLEAR_DEC_MIN
 			swap mm_time
 			inc mm_time
 			swap mm_time
 			jmp RETURN_RESET
 			CLEAR_DEC_MIN:
-				andi mm_time, 0xf0 ; Reset the last 4 bits of the register
+				andi mm_time, 0x0f ; Reset the last 4 bits of the register
 				jmp RETURN_RESET
 
 	RETURN_RESET:
