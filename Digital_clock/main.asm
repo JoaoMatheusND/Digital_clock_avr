@@ -39,8 +39,8 @@ jmp RESET ;Interruption PCINT0 - button reset
 ;DEFINES
 .def stack		   = r5  ; Exclusive use for stack SREG config
 .def temp          = r16 ; Used only with temporary data
-.def byte_val      = r17     ; Byte a ser convertido para ASCII decimal
-.def ascii_H	   = r18      ; Digito ASCII das dezenas
+.def byte_val      = r17 ; Byte a ser convertido para ASCII decimal
+.def ascii_H	   = r18 ; Digito ASCII das dezenas
 .def blink  	   = r19 ; Used to represent the what display will be blink 
 .def crono 		   = r20
 .def delay 		   = r21
@@ -49,10 +49,10 @@ jmp RESET ;Interruption PCINT0 - button reset
 .def mm_crono	   = r24 ; Used to represent the minutes of mode 2
 .def ss_crono	   = r25 ; Used to represent the seocnds of mode 2
 .def modo_status   = r26 ; Used to represent the mode of the clock
-.def flag	       = r27  ; Exclusive use to define if the nibble reg to inc is xxxx0000 or 00000xxxx 
-.def ascii_L	   = r27      ; Digito ASCII das unidades
-.def temp2         = r28        ; Variavel temporaria
-.def tx_byte	   = r29      ; Byte a ser transmitido pela serial
+.def flag	       = r27 ; Exclusive use to define if the nibble reg to inc is xxxx0000 or 00000xxxx 
+.def ascii_L	   = r27 ; Digito ASCII das unidades
+.def temp2         = r28 ; Variavel temporaria
+.def tx_byte	   = r29 ; Byte a ser transmitido pela serial
 
 
 ;.SET
@@ -103,21 +103,21 @@ str_newline: .db "\r\n", 0 ; Envia Carriage Return e Line Feed para compatibilid
 INIT:
 	;Initial vlaues
 		clr stack
-		clr flag
 		clr temp
+		clr byte_val
+		clr ascii_H
+		clr blink
+		clr crono
+		clr delay
 		clr mm_time
 		clr ss_time
 		clr mm_crono
 		clr ss_crono
-		clr blink
-		clr crono
-		clr delay
 		clr modo_status
+		clr flag
+		clr ascii_L
 		clr temp2
 		clr tx_byte
-		clr byte_val
-		clr ascii_H
-		clr ascii_L
 
 
 	;Stack initialization
@@ -150,9 +150,6 @@ INIT:
 		ldi temp, buttons
 		out DDRD, temp  ; Port D is to receiver the buttons and call the callbacks to system work very well
 
-		ldi temp, display1
-		out PORTC, temp
-
 	;Enable especific interrupt
 
 	; Inicializa UART
@@ -164,6 +161,9 @@ INIT:
 		sts UCSR0B, temp
 		ldi temp, (1<<UCSZ01)|(1<<UCSZ00)
 		sts UCSR0C, temp
+		ldi temp, (1<<TXEN0)
+		sts UCSR0B, temp
+
 
     ; Timer1 - 1s CTC
 		ldi temp, high(TOP) ;initialize compare value (TOP)
@@ -494,21 +494,26 @@ UPDATE_TIME:
 		clr mm_time ; Reset the minutes to 0
 		clr ss_time ; Reset the segunds to 0
 
-    ; Enviar Serial Modo 1: "[MODO 1] MM:SS"
-    ldi ZL, low(str_modo1<<1)
-    ldi ZH, high(str_modo1<<1)
-    rcall USART_Transmit_String
-    mov byte_val, mm_time      ; Carrega minutos
-    rcall Send_Decimal_Byte   ; Envia MM
-    ldi ZL, low(str_colon<<1)
+	ldi ZH, high(str_modo1<<1)
+	ldi ZL, low(str_modo1<<1)
+	rcall SEND_STRING
+
+	mov tx_byte, mm_time
+	rcall USART_BYTE ; Envia MM
+
+	ldi ZL, low(str_colon<<1)
     ldi ZH, high(str_colon<<1)
-    rcall USART_Transmit_String ; Envia ":"
-    mov byte_val, ss_time    ; Carrega segundos
-    rcall Send_Decimal_Byte   ; Envia SS
+	rcall SEND_STRING ; Envia ":"
+
+	mov tx_byte, ss_time
+	rcall USART_BYTE ; Envia SS
+	
     ldi ZL, low(str_newline<<1)
     ldi ZH, high(str_newline<<1)
-    rcall USART_Transmit_String
-	
+    rcall SEND_STRING ; Envia nova linha
+
+
+
 	reti
 
 
@@ -808,55 +813,46 @@ str_end:
     pop temp           ; Restaura r16
     ret
 
-; --- Send_Decimal_Byte ---
-; Converte um byte (0-99) em dois caracteres ASCII decimais e os envia pela serial.
-; Entrada: byte_val (r20) contém o valor (0-99)
-; Saída: Envia os dois caracteres ASCII pela serial
-; Usa: byte_val (r20), ascii_H (r21), ascii_L (r22), tx_byte (r19), temp (r16)
-Send_Decimal_Byte:
+
+
+SEND_STRING:
     push temp           ; Salva r16
-    push r17           ; Salva r17
-    push r20           ; Salva byte_val original se precisar depois
+	push temp2
+	ld temp, Z+        ; Carrega caractere apontado por Z e incrementa Z
+	cpi temp, 0        ; Verifica se é o caractere nulo (fim de string)
+	breq FIM_STRING   ; Se sim, sai da rotina
 
-    mov temp, byte_val  ; Copia valor para temp (usado por div10)
-    rcall div10          ; Chama sub-rotina de divisão por 10
-                         ; Resultado: temp=quociente (dezena), temp2=resto (unidade)
+WAIT_UDRE:
+    lds temp2, UCSR0A     ; carrega valor de UCSR0A
+    sbrs temp2, UDRE0     ; se UDRE0 estiver setado, pula o próximo
+    rjmp WAIT_UDRE        ; senão, volta pra esperar
 
-    mov ascii_H, temp   ; Guarda a dezena
-    mov ascii_L, temp2   ; Guarda a unidade
+	sts UDR0, temp     ; Envia caractere
+	rjmp SEND_STRING  ; Vai pro próximo caractere
 
-    ; Converte dezena para ASCII ('0' = 0x30)
-    subi ascii_H, -0x30  ; Adiciona 0x30
-    mov tx_byte, ascii_H ; Prepara para transmitir
-    rcall USART_Transmit ; Envia dígito das dezenas
-
-    ; Converte unidade para ASCII
-    subi ascii_L, -0x30  ; Adiciona 0x30
-    mov tx_byte, ascii_L ; Prepara para transmitir
-    rcall USART_Transmit ; Envia dígito das unidades
-
-    pop r20
-    pop r17
+FIM_STRING:
     pop temp
+	pop temp2
     ret
 
-; --- div10 ---
-; Sub-rotina simples para dividir por 10 
-; Entrada: temp = valor (0-99)
-; Saída: temp = quociente (Dezena), temp2 = resto (Unidade)
-; Usa: temp, temp2
-div10:
-    clr temp2           ; temp2 será o quociente (dezenas)
-div10_loop:
-    cpi temp, 10       ; Compara com 10
-    brlo div10_end      ; Se for menor, acabou
-    subi temp, 10      ; Subtrai 10
-    inc temp2           ; Incrementa quociente
-    rjmp div10_loop
-div10_end:
-    ; No fim: temp tem o resto (unidade), temp2 tem o quociente (dezena)
-    ; Troca para retornar como especificado (temp=quociente, temp2=resto)
-    push temp
-    mov temp, temp2
-    pop temp2
-    ret
+USART_BYTE:
+	mov temp, tx_byte
+	swap tx_byte        ; Inverte os nibbles (dezenas e unidades)
+	andi tx_byte, 0x0f ; Limpa os bits mais significativos (mantém apenas as unidades)
+	rcall AUX_UART ; Chama a função auxiliar para enviar o byte
+
+	mov tx_byte, temp ; Restaura o byte original (dezenas e unidades)
+	andi tx_byte, 0x0f ; Limpa os bits menos significativos (mantém apenas as dezenas)
+	rcall AUX_UART ; Chama a função auxiliar para enviar o byte
+
+	ret
+
+
+AUX_UART:
+	lds temp2, UCSR0A     ; carrega valor de UCSR0A
+    sbrs temp2, UDRE0     ; se UDRE0 estiver setado, pula o próximo
+    rjmp AUX_UART ; Se não, espera
+
+    sts UDR0, tx_byte        ; Envia o byte
+    reT
+
