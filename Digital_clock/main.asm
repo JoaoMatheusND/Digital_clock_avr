@@ -221,10 +221,10 @@ MAIN:
 		jmp CONTINUE
 
 	MODO_THREE_MAIN:
-		ldi delay, 0x01 ; Set the delay to 1ms
+		ldi delay, 150 ; Set the delay to 10
 
 		cpi blink, 0x00
-		breq BLINK_FOUR_DISPLAY ; blink the uni of the seconds display
+		breq BLINK_FOURTH_DISPLAY ; blink the uni of the seconds display
 
 		cpi blink, 0x01
 		breq BLINK_THIRD_DISPLAY ; blink the dezena of the seconds display
@@ -235,83 +235,42 @@ MAIN:
 		cpi blink, 0x03
 		breq BLINK_FIRST_DISPLAY ; blink the dezena of the minutes display
 
-		BLINK_FOUR_DISPLAY:
-			mov temp, mm_time ; Load the reg that contem the minutes of the cronometro
-			rcall SHOW_DEC_MIN ; Show the first display
-			rcall DELAY_DINAMIC 
-			rcall SHOW_UNI_MIN ; Show the second display
-			rcall DELAY_DINAMIC 
-
-			; Show the seconds crono
-			mov temp, ss_time ; Load the reg that contem the seconds of the cronometro
-			rcall SHOW_DEC_SEG ; Show the thirt display
-			rcall DELAY_DINAMIC 
-
-			ldi temp, 0x00
-			out PORTB, temp ; Set the display to 0 to turn off the display
+		BLINK_FOURTH_DISPLAY:
+			mov temp, ss_time
 			rcall SHOW_UNI_SEG ; Show the fourth display
-			rcall DELAY_DINAMIC ; Call the delay function to wait 1ms
-
-			jmp CONTINUE
-
+			rcall DELAY_DINAMIC
+			ldi temp, 0x00
+			out PORTC, temp 
+			rcall DELAY_DINAMIC
+			rcall CONTINUE ; Show the fourth display
 
 		BLINK_THIRD_DISPLAY:
-			mov temp, mm_time ; Load the reg that contem the minutes of the cronometro
-			rcall SHOW_DEC_MIN ; Show the first display
-			rcall DELAY_DINAMIC 
-			rcall SHOW_UNI_MIN ; Show the second display
-			rcall DELAY_DINAMIC 
-
-			; Show the seconds crono
-			mov temp, ss_time ; Load the reg that contem the seconds of the cronometro
-			rcall SHOW_UNI_SEG ; Show the fourth display
-			rcall DELAY_DINAMIC 
-
+			mov temp, ss_time
+			rcall SHOW_DEC_SEG ; Show the fourth display
+			rcall DELAY_DINAMIC
 			ldi temp, 0x00
-			out PORTB, temp ; Set the display to 0 to turn off the display
-			rcall SHOW_DEC_SEG ; Show the thirt display
-			rcall DELAY_DINAMIC ; Call the delay function to wait 1ms
-
-			jmp CONTINUE
+			out PORTC, temp 
+			rcall DELAY_DINAMIC
+			rcall CONTINUE ; Show the fourth display
 
 		BLINK_SECOND_DISPLAY:
-			mov temp, ss_time ; Load the reg that contem the minutes of the cronometro
-			rcall SHOW_DEC_SEG ; Show the first display
-			rcall DELAY_DINAMIC 
-			rcall SHOW_UNI_SEG ; Show the second display
-			rcall DELAY_DINAMIC 
-
-			; Show the seconds crono
-			mov temp, mm_time ; Load the reg that contem the seconds of the cronometro
-			rcall SHOW_DEC_MIN ; Show the thirt display
-			rcall DELAY_DINAMIC 
-
-			ldi temp, 0x00
-			out PORTB, temp ; Set the display to 0 to turn off the display
+			mov temp, mm_time
 			rcall SHOW_UNI_MIN ; Show the fourth display
-			rcall DELAY_DINAMIC ; Call the delay function to wait 1ms
-
-			jmp CONTINUE
+			rcall DELAY_DINAMIC
+			ldi temp, 0x00
+			out PORTC, temp 
+			rcall DELAY_DINAMIC
+			rcall CONTINUE ; Show the fourth display
 			
 
 		BLINK_FIRST_DISPLAY:
-			mov temp, ss_time ; Load the reg that contem the minutes of the cronometro
-			rcall SHOW_DEC_SEG ; Show the first display
-			rcall DELAY_DINAMIC 
-			rcall SHOW_UNI_SEG ; Show the second display
-			rcall DELAY_DINAMIC 
-
-			; Show the seconds crono
-			mov temp, mm_time ; Load the reg that contem the seconds of the cronometro
-			rcall SHOW_UNI_MIN ; Show the fourth display
-			rcall DELAY_DINAMIC 
-
+			mov temp, mm_time
+			rcall SHOW_DEC_MIN ; Show the fourth display
+			rcall DELAY_DINAMIC
 			ldi temp, 0x00
-			out PORTB, temp ; Set the display to 0 to turn off the display
-			rcall SHOW_DEC_MIN ; Show the thirt display
-			rcall DELAY_DINAMIC ; Call the delay function to wait 1ms
-
-			jmp CONTINUE
+			out PORTC, temp 
+			rcall DELAY_DINAMIC
+			rcall CONTINUE ; Show the fourth display
 			
 
 	CONTINUE:
@@ -581,6 +540,9 @@ MODO:
 
     rcall FUNC_BUZZER
 
+	ldi temp, 0x00
+	out PORTC, temp
+
     ; Incrementa o modo
     inc modo_status
 
@@ -619,6 +581,8 @@ TURN_TIMER_OFF_BLINK:
     rjmp NO_RESET_MODE
 
 NO_RESET_MODE:
+	ldi delay, 1
+	rcall DELAY_DINAMIC
     pop stack
     out SREG, stack
     reti
@@ -721,48 +685,56 @@ RESET:
 
 		SUM_FOUR_DISPLAY:
 			mov temp, ss_time
+			inc temp
 			rcall GET_LAST_4_BITS ; Get the first 4 bits of the register (unit of seconds)
 			cpi temp, 0x0a
 			breq CLEAR_UNI_SEG 
+			inc ss_time
 			jmp RETURN_RESET
 			CLEAR_UNI_SEG:
-				andi ss_time, 0b11110000 ; Reset the last 4 bits of the register
+				andi ss_time, 0x0f ; Reset the last 4 bits of the register
 				jmp RETURN_RESET
 
 		SUM_THIRD_DISPLAY:
 			mov temp, ss_time
 			swap temp
+			inc temp
 			rcall GET_LAST_4_BITS ; Get the first 4 bits of the register (unit of seconds)
 			cpi temp, 0x0a
 			breq CLEAR_DEC_SEG 
+			swap ss_time
+			inc ss_time
+			swap ss_time
 			jmp RETURN_RESET
 			CLEAR_DEC_SEG:
-				swap ss_time
-				andi ss_time, 0b11110000 ; Reset the last 4 bits of the register
-				swap ss_time
+				andi ss_time, 0xf0 ; Reset the last 4 bits of the register
 				jmp RETURN_RESET
 
 		SUM_SECOND_DISPLAY:
 			mov temp, mm_time
+			inc temp
 			rcall GET_LAST_4_BITS ; Get the first 4 bits of the register (unit of seconds)
 			cpi temp, 0x0a
 			breq CLEAR_UNI_MIN
+			inc mm_time
 			jmp RETURN_RESET
 			CLEAR_UNI_MIN:
-				andi mm_time, 0b11110000 ; Reset the last 4 bits of the register
+				andi mm_time, 0x0f ; Reset the last 4 bits of the register
 				jmp RETURN_RESET
 
 		SUM_FIRST_DISPLAY:
 			mov temp, mm_time
 			swap temp
+			inc temp
 			rcall GET_LAST_4_BITS ; Get the first 4 bits of the register (unit of seconds)
 			cpi temp, 0x0a
 			breq CLEAR_DEC_MIN
+			swap mm_time
+			inc mm_time
+			swap mm_time
 			jmp RETURN_RESET
 			CLEAR_DEC_MIN:
-				swap mm_time
-				andi mm_time, 0b11110000 ; Reset the last 4 bits of the register
-				swap mm_time
+				andi mm_time, 0xf0 ; Reset the last 4 bits of the register
 				jmp RETURN_RESET
 
 	RETURN_RESET:
