@@ -719,7 +719,7 @@ RESET:
 			inc ss_time
 			jmp RETURN_RESET
 			CLEAR_UNI_SEG:
-				rcall FUNC_BUZZER 
+				; rcall FUNC_BUZZER 
 				andi ss_time, 0x0f ; Reset the last 4 bits of the register
 				jmp RETURN_RESET
 
