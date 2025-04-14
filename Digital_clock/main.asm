@@ -5,38 +5,40 @@
 *	Copyright (C) [2025] [Digital clock]
 *	
 *	Developed by:
-*	-	Arturo Jim�nez Loaiza 
+*	-	Arturo Jiménez Loaiza 
 *	-	Gabriel Vitorino de Andrade  
 *	-	Jo�o Matheus Nascimento Dias 
 *	-	Manoel Pedro de Aranda Terceiro
 */
 
-;inclusão do arquivo de configuração do microcontrolador atmega328p
-.include "m328pdef.inc"
+.include "m328pdef.inc" ; Include the default settings of atmega328p
 
-/* The interrupt vector is listed below: */
+; ===========================
+; =		VECTOR INTERRUPTION =
+; ===========================
 jmp INIT  ;Interruption RESET
 
 ;BUTTONS
-jmp MODO  ;Interruption INT0   - button modo
-jmp START ;Interruption INT1   - button start
+jmp MODO  			;Interruption INT0   - button modo
+jmp START 			;Interruption INT1   - button start
 
 .org 0x000E
-jmp RESET ;Interruption PCINT0 - button reset
+jmp RESET 			;Interruption PCINT0 - button reset
 
-;TIME
 .org OC1Aaddr
-	jmp UPDATE_TIME
-
-;Serial printer
-.org 0x28
-	;jmp USAR_TX
+	jmp UPDATE_TIME ;Interruption OC1A - Timer1 overflow
 
 /* ******************************************* */
 
 
-/* Set the varibles and registes defines to use at the code */ 
-;DEFINES
+; ===========================
+; =		 	VARIABLES	    =
+; ===========================
+
+;----------------------------;
+;		DEFINES OF REGISTES  ;
+;----------------------------;
+
 .def stack		   = r5  ; Exclusive use for stack SREG config
 .def temp          = r16 ; Used only with temporary data
 .def byte_val      = r17 ; Byte a ser convertido para ASCII decimal
@@ -54,33 +56,38 @@ jmp RESET ;Interruption PCINT0 - button reset
 .def temp2         = r28 ; Variavel temporaria
 .def tx_byte	   = r29 ; Byte a ser transmitido pela serial
 
+;----------------------------;
+;		  CONSTANTS		     ;
+;----------------------------;
+.equ full_input   = 0x00 	   ; If used all pins of a port will be set like input
+.equ full_output  = 0xff 	   ; If used all pins of a port will be set like output
 
-;.SET
-
-
-
-;.EQU
-.equ full_input   = 0x00 ; If used all pins of a port will be set like input
-.equ full_output  = 0xff ; If used all pins of a port will be set like output
-.equ clear		  = 0x00 ; Used to reset hour or crono 
-.equ display1	  = 0b00000100 ; Used to power the transistor that will set the unidade dos segundos
-.equ display2	  = 0b00001000 ; Used to power the transistor that will set the dezena dos segundos
-.equ display3	  = 0b00010000 ; Used to power the transistor that will set the unidade dos minutos
-.equ display4	  = 0b00100000 ; Used to power the transistor that will set the dezena dos segundos
+; --- DISPLAYES MAPS ---
+.equ display1	  = 0b00000100 ; Used to power the transistor that will set the ten of minutes
+.equ display2	  = 0b00001000 ; Used to power the transistor that will set the unity of minutes
+.equ display3	  = 0b00010000 ; Used to power the transistor that will set the ten of seconds
+.equ display4	  = 0b00100000 ; Used to power the transistor that will set the unity of seconds
 .equ displayes	  = display1 | display2 | display3 | display4 ; Use to set only the pins that realy is used
-.equ B1			  = 0b00000010 ; MSB of 4 bits that is send to ci4511
+
+; --- CI4511(DECODER) MAP ---
+.equ B1			  = 0b00000010 ; LSB of 4 bits that is send to ci4511
 .equ B2			  = 0b00000100 ; *
 .equ B3			  = 0b00001000 ; *
-.equ B4			  = 0b00010000 ; LSB od 4 bits that is send to ci4511
-.equ buzzer		  = 0b00100000
+.equ B4			  = 0b00010000 ; MSB od 4 bits that is send to ci4511
 .equ CI4511		  = B1 | B2 | B3 | B4	
+
+; --- BUZZER MAP ---
+.equ buzzer		  = 0b00100000
+
+; --- BUTTONS MAP ---
 .equ modo_button  = 0b00000100
 .equ start_button = 0b00001000
 .equ reset_button = 0b00010000
 .equ buttons	  = modo_button | start_button | reset_button
 
-.equ sum_msn	  = (1 << 4) ; Used to sium 
+.equ sum_msn	  = (1 << 4) ; Used to sum the most significant nibble of the register
 
+; --- PARAMETERS TIMER AND UART---
 .equ cloclkMHz    = 16
 .equ FREQ         = 16000000
 .equ BAUD         = 9600
@@ -98,10 +105,234 @@ str_modo3_md: .db "[MODO 3] Ajustando a dezena dos minutos", 0
 str_colon: .db ":", 0
 str_newline: .db "\r\n", 0 ; Envia Carriage Return e Line Feed para compatibilidade
 
+jmp INIT ; Jump to the initialization of the program
+
 /* ******************************************* */
 
+;-------------------------------------;
+;		  AUXILIARS FUNCTIONS         ;
+;-------------------------------------;
+
+;--------------------------------------------;
+;--------------------DELAY-------------------;
+;--------------------------------------------;
+; @param [IN] TEMP: vaeu beteween 1 and 255
+; AWAITS 1ms PER UNITY IN TEMP
+DELAY_DINAMIC:
+    push r24
+    push r23
+
+LOOP_MS:
+    ldi r24, 250     ; Inner loop
+    ldi r23, 32      ; Outer loop (250 * 32 ≈ 8000)
+
+LOOP_INNER:
+    dec r24			; -
+    brne LOOP_INNER	; -
+					; ADJUSTE BY PROCESSSOR CLOCK
+    dec r23			; -
+    brne LOOP_INNER ; -
+
+    dec delay		; REAL DELAY
+    brne LOOP_MS	; -
+
+    pop r23
+    pop r24
+    ret
+
+;--------------------------------------------;
+;-------------------BUZZER-------------------;
+;--------------------------------------------;
+; This function is used to sound the buzzer
+FUNC_BUZZER:
+	push temp
+
+    cli ; Critical section - turn the global interruptcion off 
+
+    ldi temp, buzzer
+	OUT PORTB, temp
+
+    ldi delay, 90 		  ; Await 90ms 
+	rcall DELAY_DINAMIC
+
+    in   temp, PORTB      ; read PORTB
+    andi temp, ~(buzzer)  ; clear the buzzer bit
+    out  PORTB, temp      ; write back to PORTB
+
+
+    sei ; Active the global interruptcion 
+	pop temp
+    ret
+
+;--------------------------------------------;
+;-------------------DEBOUNCING---------------;
+;--------------------------------------------;
+; This function is used to debounce the buttons
+; and avoid false positives when the button is pressed
+DEBOUNCING:
+	cli 
+
+	push stack
+	in stack, SREG
+	push stack
+
+	ldi delay, 100
+	rcall DELAY_DINAMIC ; Debouncing time, awainting 100ms
+
+	pop stack
+	out SREG, stack
+	pop stack
+
+	sei
+	ret
+
+;--------------------------------------------;
+;------------------GET LSN-------------------;
+;--------------------------------------------;
+; @param [IN] TEMP: represents the register that will be used to get the last 4 bits 
+; Get the last significant nibble
+GET_LAST_4_BITS:
+	andi temp, 0b00001111 ; Get the last 4 bits of the register
+	ret
+
+;--------------------------------------------;
+;------------------GET MSN-------------------;
+;--------------------------------------------;
+; @param [IN] TEMP: represents the register that will be used to get the most 4 bits 
+; Get the most significant nibble
+GET_MOST_4_BITS:
+	andi temp, 0b11110000 ; Get the most 4 bits of the register
+	ret
+
+
+;--------------------------------------------;
+;-------------- SHOW TEN OF MINUTES ---------;
+;--------------------------------------------;
+; @param [IN] temp: represent the value of ten of mm_time
+; Configure the CI4511 to show the ten of minutes and power of transistor respectively
+SHOW_DEC_MIN:
+	cli
+	push temp
+	rcall GET_MOST_4_BITS ; Get the first 4 bits of the register (ten of minutes)
+	swap temp		      ; Swap the nibbles to get the ten of minutes EX: 0XFB -> 0XBF
+	lsl temp			  ; Left shift bit to fit with the output of CI4511
+	out PORTB, temp 	  ; Send the data to the display (ten of minutes)
+	ldi temp, display1    ; Configure to power the transistor that will set the ten of minutes
+	out PORTC, temp 	  ; Set the display to show the minutes
+	sei
+	pop temp
+	ret
+
+;--------------------------------------------;
+;------------ SHOW UNITY OF MINUTES ---------;
+;--------------------------------------------;
+; @param [IN] temp: represent the value of unity of mm_time
+; Configure the CI4511 to show the ten of minutes and power of transistor respectively
+SHOW_UNI_MIN:
+	cli
+	push temp
+	rcall GET_LAST_4_BITS ; Get the first 4 bits of the register (unit of seconds)
+	lsl temp			  ; Left shift bit to fit with the output of CI4511
+	out PORTB, temp 	  ; Send the data to the display (unit of seconds)
+	ldi temp, display2    ; Configure to power the transistor that will set the unity of minutes
+	out PORTC, temp 	  ; Set the display to show the seconds
+	sei				
+	pop temp
+	ret
+
+
+;--------------------------------------------;
+;-------------- SHOW TEN OF SECOND ----------;
+;--------------------------------------------;
+; @param [IN] temp: represent the value of ten of ss_time
+; Configure the CI4511 to show the ten of minutes and power of transistor respectively
+; The logic apresent below is analogue to the logic of the function SHOW_DEC_MIN 
+SHOW_DEC_SEG:
+	cli
+	push temp
+	rcall GET_MOST_4_BITS 
+	swap temp
+	lsl temp
+	out PORTB, temp 	  
+
+	ldi temp, display3
+	out PORTC, temp  	  
+	sei
+	pop temp
+	ret
+
+;--------------------------------------------;
+;------------- SHOW UNITY OF SECOND ---------;
+;--------------------------------------------;
+; @param [IN] temp: represent the value of unity of ss_time
+; Configure the CI4511 to show the ten of minutes and power of transistor respectively
+; The logic apresent below is analogue to the logic of the function SHOW_UNI_MIN 
+SHOW_UNI_SEG:
+	push temp
+	rcall GET_LAST_4_BITS 
+	lsl temp
+	out PORTB, temp 	  
+
+	ldi temp, display4
+	out PORTC, temp 	 
+	sei
+	pop temp
+	ret
+
+;--------------------------------------------;
+;------------- SEND STR TO SERIAL -----------;
+;--------------------------------------------;
+SEND_STRING:
+    push temp             ; Save temp register on stack
+    push temp2            ; Save temp2 register on stack
+    lpm temp, Z+          ; Load character from program memory pointed by Z and increment Z
+    cpi temp, 0           ; Compare character with null terminator (0)
+    breq FIM_STRING       ; If it's null terminator, exit the routine
+
+WAIT_UDRE:
+    lds temp2, UCSR0A     ; Load value of UCSR0A register
+    sbrs temp2, UDRE0     ; If UDRE0 is set, skip next instruction
+    rjmp WAIT_UDRE        ; Else, wait for UDRE0 to be set
+
+    sts UDR0, temp        ; Send character via USART
+    rjmp SEND_STRING      ; Repeat for next character
+
+FIM_STRING:
+    pop temp              ; Restore temp register
+    pop temp2             ; Restore temp2 register
+    ret                   ; Return from subroutine
+
+
+;--------------------------------------------;
+;------------- SEND BYTE TO SERIAL ----------;
+;--------------------------------------------;
+USART_BYTE:
+    mov temp, tx_byte      ; Copy tx_byte to temp
+    swap tx_byte           ; Swap high and low nibbles (decades and units)
+    andi tx_byte, 0x0F     ; Clear high nibble, keep only units
+    rcall AUX_UART         ; Call auxiliary routine to send the byte
+
+    mov tx_byte, temp      ; Restore original tx_byte (decades and units)
+    andi tx_byte, 0x0F     ; Clear low nibble, keep only decades
+    rcall AUX_UART         ; Call auxiliary routine to send the byte
+
+    ret                    ; Return from subroutine
+
+AUX_UART:
+    lds temp2, UCSR0A        ; Load UCSR0A register value
+    sbrs temp2, UDRE0        ; Skip next instruction if UDRE0 (USART Data Register Empty) is set
+    rjmp AUX_UART            ; If not set, wait (loop here)
+
+    sts UDR0, tx_byte        ; Store tx_byte into UDR0 to send it via USART
+    ret                      ; Return from subroutine
+
+
+;-------------------------------------;
+;		  ASSEMBLY MAIN PROGRAM       ;
+;-------------------------------------;
+
 INIT:
-	;Initial vlaues
+	; --- Initial vlaues -- ;
 		clr stack
 		clr temp
 		clr byte_val
@@ -120,7 +351,7 @@ INIT:
 		clr tx_byte
 
 
-	;Stack initialization
+	; --- Stack initialization -- ;
 		ldi temp, low(RAMEND)
 		mov stack, temp
 		out SPL, stack
@@ -128,7 +359,7 @@ INIT:
 		mov stack, temp
 		out SPH, stack
 
-	;Config timer to modo1
+	; --- Config timer to modo1 --- 
 		#define CLOCK 16.0e6 ;clock speed
 		#define DELAY .1 ;seconds
 		.equ PRESCALE = 0b100 ;/256 prescale
@@ -140,7 +371,7 @@ INIT:
 		.error "TOP is out of range"
 		.endif
 
-	;Config the ports (DDR's) - IO
+	; --- Config the ports (DDR's) - IO --- ;
 		ldi temp, CI4511 | buzzer
 		out DDRB, temp ; Port B is to CI4511 and buzzer
 
@@ -150,9 +381,11 @@ INIT:
 		ldi temp, buttons
 		out DDRD, temp  ; Port D is to receiver the buttons and call the callbacks to system work very well
 
-	;Enable especific interrupt
+	; ==============================
+	; = Enable especific interrupt =
+	; ==============================
 
-	; Inicializa UART
+	; --- Inicializa UART --- ;
 		ldi temp, HIGH((FREQ/(16*BAUD)) - 1)
 		sts UBRR0H, temp
 		ldi temp, LOW((FREQ/(16*BAUD)) - 1)
@@ -186,13 +419,18 @@ INIT:
 		out EIMSK, temp
 		ldi temp, (1<<ISC01)|(1<<ISC11)
 		sts EICRA, temp
-		ldi temp, (1<<PCIE2)         ; Habilita interrupção no grupo PCINT2 (PORTD)
+		ldi temp, (1<<PCIE2)         ; Able the group PCINT2 (PORTD)' interruption
 		sts PCICR, temp
-		ldi temp, (1<<PCINT20)       ; Habilita especificamente o pino PD4
+		ldi temp, (1<<PCINT20)       ; Active the PIN 2 by PORTD variance
 		sts PCMSK2, temp
 
 	sei
 
+; =========================
+; =		  MAIN LOOP	      =
+; =========================
+;  The main loop is the main function of the program. It is responsible for showing the time and the crono 
+; in the display and blink the display that is selected by the user on mode 3.
 MAIN:
 	cpi modo_status, 0x00
 	breq MODO_ONE_MAIN
@@ -288,161 +526,9 @@ MAIN:
 	CONTINUE:
 		rjmp MAIN ; Infinite loop
 
-    
-
-SHOW_DEC_MIN:
-	push temp
-	rcall GET_MOST_4_BITS ; Get the first 4 bits of the register (unit of seconds)
-	swap temp
-	lsl temp
-
-	cli
-	out PORTB, temp ; Send the data to the display (unit of seconds)
-	sei
-
-	ldi temp, display1
-
-	cli
-	out PORTC, temp ; Set the display to show the seconds
-	sei
-
-	pop temp
-	ret
-
-
-SHOW_UNI_MIN:
-	push temp
-	rcall GET_LAST_4_BITS ; Get the first 4 bits of the register (unit of seconds)
-	lsl temp
-
-	cli
-	out PORTB, temp ; Send the data to the display (unit of seconds)
-	sei
-
-	ldi temp, display2
-
-	cli
-	out PORTC, temp ; Set the display to show the seconds
-	sei
-
-	pop temp
-	ret
-
-
-
-SHOW_DEC_SEG:
-	push temp
-	rcall GET_MOST_4_BITS ; Get the first 4 bits of the register (unit of seconds)
-	swap temp
-	lsl temp
-
-	cli
-	out PORTB, temp ; Send the data to the display (unit of seconds)
-	sei
-
-	ldi temp, display3
-
-	cli
-	out PORTC, temp ; Set the display to show the seconds
-	sei
-
-	pop temp
-	ret
-
-
-
-SHOW_UNI_SEG:
-	push temp
-	rcall GET_LAST_4_BITS ; Get the first 4 bits of the register (unit of seconds)
-	lsl temp
-
-	cli
-	out PORTB, temp ; Send the data to the display (unit of seconds)
-	sei
-
-	ldi temp, display4
-
-	cli
-	out PORTC, temp ; Set the display to show the seconds
-	sei
-
-	pop temp
-	ret
-
-;Recebe o argumento da quantidade de delay em ms por r25 (definido por temp)
-; Espera (delay) milissegundos (valor entre 1 e 255)
-; Delay de aproximadamente 1ms por unidade em r25
-DELAY_DINAMIC:
-    push r24
-    push r23
-
-LOOP_MS:
-    ldi r24, 250     ; Inner loop
-    ldi r23, 32      ; Outer loop (250 * 32 ≈ 8000)
-
-LOOP_INNER:
-    dec r24
-    brne LOOP_INNER
-
-    dec r23
-    brne LOOP_INNER
-
-    dec delay
-    brne LOOP_MS
-
-    pop r23
-    pop r24
-    ret
-
-
-FUNC_BUZZER:
-	push temp
-
-    cli ; Critical section - turn the global interruptcion off 
-
-    ldi temp, buzzer
-	OUT PORTB, temp
-
-    ldi delay, 90 ; Await 90ms 
-	rcall DELAY_DINAMIC
-
-    in   temp, PORTB      ; Lê PORTB
-    andi temp, ~(buzzer)  ; Limpa o bit do buzzer (inverte e faz AND)
-    out  PORTB, temp      ; Escreve de volta
-
-
-    sei ; Active the global interruptcion 
-	pop temp
-    ret
-
-DEBOUNCING:
-	cli 
-
-	push stack
-	in stack, SREG
-	push stack
-
-	
-
-	ldi delay, 100
-	rcall DELAY_DINAMIC ; Debouncing time
-
-
-	pop stack
-	out SREG, stack
-	pop stack
-
-	sei
-	ret
-
-GET_LAST_4_BITS:
-	andi temp, 0b00001111 ; Get the last 4 bits of the register
-	ret
-
-GET_MOST_4_BITS:
-	andi temp, 0b11110000 ; Get the most 4 bits of the register
-	ret
-
+; =====================================
+; =		 	timer interruption	      =
+; =====================================
 UPDATE_TIME:
 	mov temp, flag
 	cpi temp, 0x00
@@ -516,8 +602,6 @@ UPDATE_TIME:
 
 	reti
 
-
-
 UPDATE_CRONO:
 	inc ss_crono
 	
@@ -561,9 +645,11 @@ UPDATE_CRONO:
 	RESET_MSN_MINUTES_CRONO:
 		clr mm_crono ; Reset the minutes to 0
 		clr ss_crono ; Reset the segunds to 0
-		
 	ret
 
+; =====================================
+; =		 	Mode interruption	      =
+; =====================================
 MODO:
     rcall DEBOUNCING
 
@@ -619,6 +705,9 @@ NO_RESET_MODE:
     out SREG, stack
     reti
 
+; =====================================
+; =		 	Start interruption	      =
+; =====================================
 START:
 
 	push stack
@@ -666,6 +755,9 @@ START:
 		pop stack
 		reti
 
+; =====================================
+; =		 	Reset interruption	      =
+; =====================================
 RESET:
 
 	push stack
@@ -779,80 +871,3 @@ RESET:
 		out SREG, stack
 		pop stack
 		reti
-
-; --- USART_Transmit ---
-; Envia um byte pela serial. Espera o buffer estar livre.
-; Entrada: tx_byte (r19) contém o byte a ser enviado
-USART_Transmit:
-    push temp          ; Salva r16
-tx_wait_loop:
-    lds temp, UCSR0A   ; Lê o status do USART
-    sbrs temp, UDRE0   ; Pula a próxima instrução se o bit UDRE0 (Data Register Empty) estiver setado (1)
-    rjmp tx_wait_loop   ; Se não estiver vazio (UDRE0=0), espera
-    sts UDR0, tx_byte   ; Coloca o byte no buffer de transmissão (envia)
-    pop temp           ; Restaura r16
-    ret
-
-; --- USART_Transmit_String ---
-; Envia uma string (terminada em NULL) localizada na memória de programa (Flash).
-; Entrada: Z (r31:r30) aponta para o início da string na memória de programa.
-; Usa: Z, tx_byte (r19), temp (r16)
-USART_Transmit_String:
-    push temp          ; Salva r16
-    push r30
-    push r31
-str_loop:
-    lpm tx_byte, Z+     ; Carrega byte da memória de programa no tx_byte e incrementa Z
-    tst tx_byte         ; Verifica se o byte carregado é zero (NULL terminator)
-    breq str_end        ; Se for zero, fim da string
-    rcall USART_Transmit ; Envia o byte
-    rjmp str_loop       ; Próximo caractere
-str_end:
-    pop r31
-    pop r30
-    pop temp           ; Restaura r16
-    ret
-
-
-
-SEND_STRING:
-    push temp           ; Salva r16
-	push temp2
-	ld temp, Z+        ; Carrega caractere apontado por Z e incrementa Z
-	cpi temp, 0        ; Verifica se é o caractere nulo (fim de string)
-	breq FIM_STRING   ; Se sim, sai da rotina
-
-WAIT_UDRE:
-    lds temp2, UCSR0A     ; carrega valor de UCSR0A
-    sbrs temp2, UDRE0     ; se UDRE0 estiver setado, pula o próximo
-    rjmp WAIT_UDRE        ; senão, volta pra esperar
-
-	sts UDR0, temp     ; Envia caractere
-	rjmp SEND_STRING  ; Vai pro próximo caractere
-
-FIM_STRING:
-    pop temp
-	pop temp2
-    ret
-
-USART_BYTE:
-	mov temp, tx_byte
-	swap tx_byte        ; Inverte os nibbles (dezenas e unidades)
-	andi tx_byte, 0x0f ; Limpa os bits mais significativos (mantém apenas as unidades)
-	rcall AUX_UART ; Chama a função auxiliar para enviar o byte
-
-	mov tx_byte, temp ; Restaura o byte original (dezenas e unidades)
-	andi tx_byte, 0x0f ; Limpa os bits menos significativos (mantém apenas as dezenas)
-	rcall AUX_UART ; Chama a função auxiliar para enviar o byte
-
-	ret
-
-
-AUX_UART:
-	lds temp2, UCSR0A     ; carrega valor de UCSR0A
-    sbrs temp2, UDRE0     ; se UDRE0 estiver setado, pula o próximo
-    rjmp AUX_UART ; Se não, espera
-
-    sts UDR0, tx_byte        ; Envia o byte
-    reT
-
